@@ -1,0 +1,1243 @@
+import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+import '../../services/dashboard_service.dart';
+
+class CompanyCustomersPage extends StatefulWidget {
+  const CompanyCustomersPage({
+    super.key,
+  });
+
+  @override
+  State<CompanyCustomersPage> createState() =>
+      _CompanyCustomersPageState();
+}
+
+class _CompanyCustomersPageState
+    extends State<CompanyCustomersPage> {
+  final DashboardService _service =
+      DashboardService();
+
+  bool _loading = true;
+
+  String? _error;
+
+  List<Map<String, dynamic>> _customers = [];
+
+  String _search = '';
+
+  @override
+  void initState() {
+    super.initState();
+
+    _loadCustomers();
+  }
+
+  // ============================================================
+  // CARREGAR CLIENTES
+  // ============================================================
+
+  Future<void> _loadCustomers() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
+    try {
+      final customers =
+          await _service.getCompanyCustomers();
+
+      if (!mounted) return;
+
+      setState(() {
+        _customers = customers;
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        _loading = false;
+
+        _error = e
+            .toString()
+            .replaceFirst(
+              'Exception: ',
+              '',
+            );
+      });
+    }
+  }
+
+  // ============================================================
+  // CLIENTES FILTRADOS
+  // ============================================================
+
+  List<Map<String, dynamic>>
+      get _filteredCustomers {
+    if (_search.trim().isEmpty) {
+      return _customers;
+    }
+
+    final search =
+        _search.toLowerCase().trim();
+
+    return _customers.where((customer) {
+      final name =
+          (customer['full_name'] ?? '')
+              .toString()
+              .toLowerCase();
+
+      final whatsapp =
+          (customer['whatsapp'] ?? '')
+              .toString()
+              .toLowerCase();
+
+      return name.contains(search) ||
+          whatsapp.contains(search);
+    }).toList();
+  }
+
+  // ============================================================
+  // BUILD
+  // ============================================================
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text(
+          'Meus clientes',
+        ),
+      ),
+      body: _buildBody(),
+    );
+  }
+
+  Widget _buildBody() {
+    if (_loading) {
+      return const Center(
+        child: CircularProgressIndicator(),
+      );
+    }
+
+    if (_error != null) {
+      return _buildError();
+    }
+
+    return RefreshIndicator(
+      onRefresh: _loadCustomers,
+      child: ListView(
+        physics:
+            const AlwaysScrollableScrollPhysics(),
+        padding:
+            const EdgeInsets.all(20),
+        children: [
+          _buildHeader(),
+
+          const SizedBox(
+            height: 20,
+          ),
+
+          _buildSearch(),
+
+          const SizedBox(
+            height: 20,
+          ),
+
+          if (_customers.isEmpty)
+            _buildEmpty()
+          else if (_filteredCustomers.isEmpty)
+            _buildNoSearchResults()
+          else
+            ..._filteredCustomers.map(
+              _buildCustomerCard,
+            ),
+
+          const SizedBox(
+            height: 20,
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // HEADER
+  // ============================================================
+
+  Widget _buildHeader() {
+    final count =
+        _customers.length;
+
+    return Column(
+      crossAxisAlignment:
+          CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Clientes',
+          style: Theme.of(context)
+              .textTheme
+              .headlineMedium
+              ?.copyWith(
+                fontWeight:
+                    FontWeight.bold,
+              ),
+        ),
+
+        const SizedBox(
+          height: 6,
+        ),
+
+        Text(
+          '$count ${count == 1 ? 'cliente cadastrado' : 'clientes cadastrados'}',
+          style: const TextStyle(
+            color: Colors.grey,
+            fontSize: 15,
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ============================================================
+  // BUSCA
+  // ============================================================
+
+  Widget _buildSearch() {
+    return TextField(
+      onChanged: (value) {
+        setState(() {
+          _search = value;
+        });
+      },
+      decoration: InputDecoration(
+        hintText:
+            'Buscar cliente...',
+        prefixIcon: const Icon(
+          Icons.search,
+        ),
+        suffixIcon:
+            _search.isNotEmpty
+                ? IconButton(
+                    onPressed: () {
+                      setState(() {
+                        _search = '';
+                      });
+                    },
+                    icon: const Icon(
+                      Icons.clear,
+                    ),
+                  )
+                : null,
+        border: OutlineInputBorder(
+          borderRadius:
+              BorderRadius.circular(16),
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // CARD DO CLIENTE
+  // ============================================================
+
+  Widget _buildCustomerCard(
+    Map<String, dynamic> customer,
+  ) {
+    final name =
+        (customer['full_name'] ??
+                'Cliente')
+            .toString();
+
+    final whatsapp =
+        customer['whatsapp']
+            ?.toString();
+
+    final pointsEarned =
+        _toInt(
+      customer['points_earned'],
+    );
+
+    final pointsCurrent =
+        _toInt(
+      customer['points_current'] ??
+          customer['points'],
+    );
+
+    final lastBenefitUsedAt = customer['last_benefit_used_at']?.toString();
+
+    final available =
+        List<Map<String, dynamic>>.from(
+      customer['available_benefits'] ??
+          [],
+    );
+
+    final used =
+        List<Map<String, dynamic>>.from(
+      customer['used_benefits'] ??
+          [],
+    );
+
+    final cancelled =
+        List<Map<String, dynamic>>.from(
+      customer['cancelled_benefits'] ??
+          [],
+    );
+
+    final hasWhatsApp =
+        whatsapp != null &&
+            whatsapp.isNotEmpty &&
+            whatsapp != 'null';
+
+    return Card(
+      margin:
+          const EdgeInsets.only(
+        bottom: 12,
+      ),
+      elevation: 0,
+      shape:
+          RoundedRectangleBorder(
+        borderRadius:
+            BorderRadius.circular(18),
+      ),
+      clipBehavior:
+          Clip.antiAlias,
+      child: ExpansionTile(
+        tilePadding:
+            const EdgeInsets.symmetric(
+          horizontal: 18,
+          vertical: 4,
+        ),
+        childrenPadding:
+            const EdgeInsets.fromLTRB(
+          18,
+          0,
+          18,
+          18,
+        ),
+
+        // ========================================================
+        // PARTE ENCOLHIDA
+        // ========================================================
+
+        leading: CircleAvatar(
+          radius: 23,
+          child: Text(
+            _initials(name),
+            style:
+                const TextStyle(
+              fontWeight:
+                  FontWeight.bold,
+            ),
+          ),
+        ),
+
+        title: Text(
+          name,
+          style:
+              const TextStyle(
+            fontSize: 17,
+            fontWeight:
+                FontWeight.bold,
+          ),
+        ),
+
+        subtitle: Text(
+          '$pointsCurrent pontos atuais',
+          style:
+              const TextStyle(
+            color: Colors.grey,
+            fontSize: 12,
+          ),
+        ),
+
+        // ========================================================
+        // PARTE EXPANDIDA
+        // ========================================================
+
+        children: [
+          const Divider(
+            height: 1,
+          ),
+
+          const SizedBox(
+            height: 16,
+          ),
+
+          // ------------------------------------------------------
+          // WHATSAPP
+          // ------------------------------------------------------
+
+          Row(
+            children: [
+              const Icon(
+                Icons.phone_outlined,
+                size: 20,
+              ),
+
+              const SizedBox(
+                width: 10,
+              ),
+
+              Expanded(
+                child: Column(
+                  crossAxisAlignment:
+                      CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'WhatsApp',
+                      style:
+                          TextStyle(
+                        color:
+                            Colors.grey,
+                        fontSize: 12,
+                      ),
+                    ),
+
+                    const SizedBox(
+                      height: 2,
+                    ),
+
+                    Text(
+                      hasWhatsApp
+                          ? whatsapp
+                          : 'Não cadastrado',
+                      style:
+                          const TextStyle(
+                        fontWeight:
+                            FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              if (hasWhatsApp)
+                FilledButton.icon(
+                  onPressed:
+                      () => _openWhatsApp(
+                    whatsapp,
+                  ),
+                  icon: const Icon(
+                    Icons.chat_rounded,
+                    size: 18,
+                  ),
+                  label:
+                      const Text(
+                    'WhatsApp',
+                  ),
+                ),
+            ],
+          ),
+
+          const SizedBox(height: 16),
+
+          Row(
+            children: [
+              const Icon(
+                Icons.history_rounded,
+                size: 20,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment:
+                      CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Último benefício utilizado',
+                      style: TextStyle(
+                        color: Colors.grey,
+                        fontSize: 12,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      lastBenefitUsedAt != null &&
+                              lastBenefitUsedAt.isNotEmpty
+                          ? _formatDate(lastBenefitUsedAt)
+                          : 'Nenhum benefício utilizado',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(
+            height: 18,
+          ),
+
+          // ------------------------------------------------------
+          // PONTOS
+          // ------------------------------------------------------
+
+          Row(
+            children: [
+              Expanded(
+                child:
+                    _buildPointsCard(
+                  icon: Icons
+                      .history_rounded,
+                  title:
+                      'Pontos recebidos',
+                  value:
+                      pointsEarned,
+                ),
+              ),
+
+              const SizedBox(
+                width: 12,
+              ),
+
+              Expanded(
+                child:
+                    _buildPointsCard(
+                  icon: Icons
+                      .account_balance_wallet_outlined,
+                  title:
+                      'Pontos atuais',
+                  value:
+                      pointsCurrent,
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(
+            height: 20,
+          ),
+
+          // ------------------------------------------------------
+          // BENEFÍCIOS DISPONÍVEIS
+          // ------------------------------------------------------
+
+          _buildBenefitsSection(
+            title:
+                'Benefícios disponíveis',
+            icon:
+                Icons.card_giftcard_outlined,
+            benefits:
+                available,
+            emptyText:
+                'Nenhum benefício disponível.',
+            showExpiration: true,
+          ),
+
+          const SizedBox(
+            height: 16,
+          ),
+
+          // ------------------------------------------------------
+          // BENEFÍCIOS UTILIZADOS
+          // ------------------------------------------------------
+
+          _buildBenefitsSection(
+            title:
+                'Benefícios utilizados',
+            icon:
+                Icons.check_circle_outline,
+            benefits:
+                used,
+            emptyText:
+                'Nenhum benefício utilizado.',
+          ),
+
+          // ------------------------------------------------------
+          // BENEFÍCIOS CANCELADOS
+          // ------------------------------------------------------
+
+          if (cancelled.isNotEmpty) ...[
+            const SizedBox(
+              height: 16,
+            ),
+
+            _buildBenefitsSection(
+              title:
+                  'Benefícios cancelados',
+              icon:
+                  Icons.cancel_outlined,
+              benefits:
+                  cancelled,
+              emptyText:
+                  'Nenhum benefício cancelado.',
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // CARD DE PONTOS
+  // ============================================================
+
+  Widget _buildPointsCard({
+    required IconData icon,
+    required String title,
+    required int value,
+  }) {
+    return Container(
+      padding:
+          const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        borderRadius:
+            BorderRadius.circular(16),
+        color: Theme.of(context)
+            .colorScheme
+            .surfaceContainerHighest,
+      ),
+      child: Column(
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
+        children: [
+          Icon(
+            icon,
+            size: 24,
+            color: Theme.of(context)
+                .colorScheme
+                .primary,
+          ),
+
+          const SizedBox(
+            height: 10,
+          ),
+
+          Text(
+            value.toString(),
+            style:
+                const TextStyle(
+              fontSize: 22,
+              fontWeight:
+                  FontWeight.bold,
+            ),
+          ),
+
+          const SizedBox(
+            height: 3,
+          ),
+
+          Text(
+            title,
+            style:
+                const TextStyle(
+              color: Colors.grey,
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // BENEFÍCIOS
+  // ============================================================
+
+  Widget _buildBenefitsSection({
+    required String title,
+    required IconData icon,
+    required List<Map<String, dynamic>> benefits,
+    required String emptyText,
+    bool showExpiration = false,
+  }) {
+    return Column(
+      crossAxisAlignment:
+          CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(
+              icon,
+              size: 21,
+            ),
+
+            const SizedBox(
+              width: 8,
+            ),
+
+            Expanded(
+              child: Text(
+                '$title (${benefits.length})',
+                style:
+                    const TextStyle(
+                  fontSize: 16,
+                  fontWeight:
+                      FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+
+        const SizedBox(
+          height: 10,
+        ),
+
+        if (benefits.isEmpty)
+          Container(
+            width:
+                double.infinity,
+            padding:
+                const EdgeInsets.all(
+              14,
+            ),
+            decoration:
+                BoxDecoration(
+              borderRadius:
+                  BorderRadius.circular(
+                12,
+              ),
+              border:
+                  Border.all(
+                color: Theme.of(context)
+                    .dividerColor,
+              ),
+            ),
+            child: Text(
+              emptyText,
+              style:
+                  const TextStyle(
+                color: Colors.grey,
+                fontSize: 13,
+              ),
+            ),
+          )
+        else
+          ...benefits.map(
+            (benefit) => _buildBenefitItem(
+              benefit,
+              showExpiration: showExpiration,
+            ),
+          ),
+      ],
+    );
+  }
+
+  // ============================================================
+  // ITEM DE BENEFÍCIO
+  // ============================================================
+
+  Widget _buildBenefitItem(
+    Map<String, dynamic> benefit, {
+    bool showExpiration = false,
+  }) {
+    final title =
+        (benefit['title'] ?? 'Benefício').toString();
+
+    final points =
+        _toInt(
+      benefit['points_spent'],
+    );
+
+    final createdAt =
+        benefit['created_at']?.toString();
+
+    final expiresAt =
+        benefit['expires_at']?.toString();
+
+    final expirationDate =
+        expiresAt != null &&
+                expiresAt.isNotEmpty
+            ? DateTime.tryParse(expiresAt)
+            : null;
+
+    final now = DateTime.now();
+
+    int? daysRemaining;
+
+    if (expirationDate != null) {
+      final today = DateTime(
+        now.year,
+        now.month,
+        now.day,
+      );
+
+      final expiration = DateTime(
+        expirationDate.year,
+        expirationDate.month,
+        expirationDate.day,
+      );
+
+      daysRemaining =
+          expiration.difference(today).inDays;
+    }
+
+    return Container(
+      margin:
+          const EdgeInsets.only(
+        bottom: 8,
+      ),
+      padding:
+          const EdgeInsets.all(12),
+      decoration:
+          BoxDecoration(
+        borderRadius:
+            BorderRadius.circular(12),
+        border:
+            Border.all(
+          color:
+              Theme.of(context)
+                  .dividerColor,
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
+        children: [
+          const CircleAvatar(
+            radius: 18,
+            child: Icon(
+              Icons.card_giftcard,
+              size: 18,
+            ),
+          ),
+
+          const SizedBox(
+            width: 10,
+          ),
+
+          Expanded(
+            child: Column(
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
+              children: [
+                // --------------------------------------------------
+                // NOME DO BENEFÍCIO
+                // --------------------------------------------------
+
+                Text(
+                  title,
+                  style:
+                      const TextStyle(
+                    fontWeight:
+                        FontWeight.w600,
+                  ),
+                ),
+
+                // --------------------------------------------------
+                // DATA EM QUE FOI RESGATADO
+                // --------------------------------------------------
+
+                if (createdAt != null &&
+                    createdAt.isNotEmpty)
+                  Padding(
+                    padding:
+                        const EdgeInsets.only(
+                      top: 3,
+                    ),
+                    child: Text(
+                      'Resgatado em ${_formatDate(createdAt)}',
+                      style:
+                          const TextStyle(
+                        color:
+                            Colors.grey,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ),
+
+                // --------------------------------------------------
+                // DATA DE EXPIRAÇÃO
+                // --------------------------------------------------
+
+                if (showExpiration &&
+                    expiresAt != null &&
+                    expiresAt.isNotEmpty) ...[
+                  const SizedBox(
+                    height: 5,
+                  ),
+
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons
+                            .event_outlined,
+                        size: 15,
+                      ),
+
+                      const SizedBox(
+                        width: 5,
+                      ),
+
+                      Text(
+                        'Expira em ${_formatDate(expiresAt)}',
+                        style:
+                            const TextStyle(
+                          fontSize: 12,
+                          fontWeight:
+                              FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  // ------------------------------------------------
+                  // AVISO DE VENCIMENTO
+                  // ------------------------------------------------
+
+                  if (daysRemaining !=
+                          null &&
+                      daysRemaining! >=
+                          0) ...[
+                    const SizedBox(
+                      height: 6,
+                    ),
+
+                    Row(
+                      crossAxisAlignment:
+                          CrossAxisAlignment
+                              .start,
+                      children: [
+                        const Icon(
+                          Icons
+                              .notification_important_outlined,
+                          size: 15,
+                        ),
+
+                        const SizedBox(
+                          width: 5,
+                        ),
+
+                        Expanded(
+                          child: Text(
+                            _expirationMessage(
+                              daysRemaining!,
+                            ),
+                            style:
+                                const TextStyle(
+                              fontSize: 11,
+                              color:
+                                  Colors.grey,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ],
+              ],
+            ),
+          ),
+
+          // --------------------------------------------------------
+          // PONTOS
+          // --------------------------------------------------------
+
+          if (points > 0)
+            Padding(
+              padding:
+                  const EdgeInsets.only(
+                left: 8,
+              ),
+              child: Text(
+                '$points pts',
+                style:
+                    const TextStyle(
+                  fontWeight:
+                      FontWeight.bold,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // WHATSAPP
+  // ============================================================
+
+  Widget _buildWhatsAppButton(
+    String? whatsapp,
+  ) {
+    final valid =
+        whatsapp != null &&
+            whatsapp.isNotEmpty &&
+            whatsapp != 'null';
+
+    return IconButton(
+      tooltip:
+          'Enviar mensagem no WhatsApp',
+      onPressed: valid
+          ? () => _openWhatsApp(whatsapp!)
+          : null,
+      icon: const Icon(
+        Icons.chat_rounded,
+      ),
+    );
+  }
+
+  Future<void> _openWhatsApp(
+    String whatsapp,
+  ) async {
+    var number =
+        whatsapp.replaceAll(
+      RegExp(r'[^0-9]'),
+      '',
+    );
+
+    // Caso o banco tenha armazenado
+    // somente DDD + número.
+    if (number.length == 10 ||
+        number.length == 11) {
+      number = '55$number';
+    }
+
+    final uri = Uri.parse(
+      'https://wa.me/$number',
+    );
+
+    try {
+      final launched =
+          await launchUrl(
+        uri,
+        mode:
+            LaunchMode.externalApplication,
+      );
+
+      if (!launched &&
+          mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Não foi possível abrir o WhatsApp.',
+            ),
+          ),
+        );
+      }
+    } catch (_) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Não foi possível abrir o WhatsApp.',
+          ),
+        ),
+      );
+    }
+  }
+
+  // ============================================================
+  // ESTADOS VAZIOS
+  // ============================================================
+
+  Widget _buildEmpty() {
+    return Center(
+      child: Padding(
+        padding:
+            const EdgeInsets.all(30),
+        child: Column(
+          children: [
+            Icon(
+              Icons.people_outline,
+              size: 60,
+              color: Colors.grey
+                  .withValues(alpha: 0.6),
+            ),
+
+            const SizedBox(
+              height: 16,
+            ),
+
+            const Text(
+              'Nenhum cliente encontrado.',
+              style:
+                  TextStyle(
+                fontSize: 17,
+                fontWeight:
+                    FontWeight.bold,
+              ),
+            ),
+
+            const SizedBox(
+              height: 6,
+            ),
+
+            const Text(
+              'Os clientes aparecerão aqui quando tiverem uma conta de fidelidade na sua empresa.',
+              textAlign:
+                  TextAlign.center,
+              style:
+                  TextStyle(
+                color: Colors.grey,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNoSearchResults() {
+    return const Padding(
+      padding:
+          EdgeInsets.all(30),
+      child: Column(
+        children: [
+          Icon(
+            Icons.search_off,
+            size: 50,
+          ),
+
+          SizedBox(
+            height: 12,
+          ),
+
+          Text(
+            'Nenhum cliente encontrado para essa busca.',
+            textAlign:
+                TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // ERRO
+  // ============================================================
+
+  Widget _buildError() {
+    return Center(
+      child: Padding(
+        padding:
+            const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize:
+              MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.error_outline,
+              size: 50,
+            ),
+
+            const SizedBox(
+              height: 16,
+            ),
+
+            Text(
+              _error!,
+              textAlign:
+                  TextAlign.center,
+            ),
+
+            const SizedBox(
+              height: 16,
+            ),
+
+            ElevatedButton(
+              onPressed:
+                  _loadCustomers,
+              child:
+                  const Text(
+                'Tentar novamente',
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // HELPERS
+  // ============================================================
+
+  int _toInt(dynamic value) {
+    if (value == null) {
+      return 0;
+    }
+
+    if (value is int) {
+      return value;
+    }
+
+    if (value is num) {
+      return value.toInt();
+    }
+
+    return int.tryParse(
+          value.toString(),
+        ) ??
+        0;
+  }
+
+  String _initials(String name) {
+    final parts = name
+        .trim()
+        .split(RegExp(r'\s+'));
+
+    if (parts.isEmpty) {
+      return '?';
+    }
+
+    if (parts.length == 1) {
+      return parts.first
+          .substring(
+            0,
+            parts.first.length >= 2
+                ? 2
+                : 1,
+          )
+          .toUpperCase();
+    }
+
+    return '${parts.first[0]}${parts.last[0]}'
+        .toUpperCase();
+  }
+
+  String _expirationMessage(
+    int daysRemaining,
+  ) {
+    if (daysRemaining == 0) {
+      return 'Expira hoje. Entre em contato com o cliente.';
+    }
+
+    if (daysRemaining == 1) {
+      return 'Expira amanhã. Recomendamos entrar em contato com o cliente.';
+    }
+
+    if (daysRemaining <= 7) {
+      return 'Faltam $daysRemaining dias. Recomendamos entrar em contato com o cliente.';
+    }
+
+    return 'Faltam $daysRemaining dias para o vencimento.';
+  }
+
+  String _formatDate(String value) {
+    final date =
+        DateTime.tryParse(value);
+
+    if (date == null) {
+      return '';
+    }
+
+    final day =
+        date.day.toString().padLeft(
+              2,
+              '0',
+            );
+
+    final month =
+        date.month.toString().padLeft(
+              2,
+              '0',
+            );
+
+    final year =
+        date.year.toString();
+
+    return '$day/$month/$year';
+  }
+}
