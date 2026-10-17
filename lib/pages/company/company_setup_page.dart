@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../services/company_service.dart';
 
 class CompanySetupPage extends StatefulWidget {
@@ -109,105 +109,120 @@ class _CompanySetupPageState
   // SALVAR
   // ============================================================
 
+  
   Future<void> _save() async {
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
+    if (!_formKey.currentState!.validate()) return;
 
     setState(() {
       _saving = true;
       _error = null;
     });
 
+    var emailSent = false;
+
     try {
       if (_editing) {
-        // ------------------------------------------------------
-        // ATUALIZAR EMPRESA
-        // ------------------------------------------------------
-
         await _companyService.updateCompany(
-          name:
-              _nameController.text.trim(),
-          description:
-              _descriptionController.text
-                      .trim()
-                      .isEmpty
-                  ? null
-                  : _descriptionController.text
-                      .trim(),
-          phone:
-              _phoneController.text
-                      .trim()
-                      .isEmpty
-                  ? null
-                  : _phoneController.text
-                      .trim(),
-          address:
-              _addressController.text
-                      .trim()
-                  .isEmpty
-                  ? null
-                  : _addressController.text
-                      .trim(),
+          name: _nameController.text.trim(),
+          description: _descriptionController.text.trim().isEmpty
+              ? null
+              : _descriptionController.text.trim(),
+          phone: _phoneController.text.trim().isEmpty
+              ? null
+              : _phoneController.text.trim(),
+          address: _addressController.text.trim().isEmpty
+              ? null
+              : _addressController.text.trim(),
         );
-      } else {
-        // ------------------------------------------------------
-        // CRIAR EMPRESA
-        // ------------------------------------------------------
 
-        await _companyService.createCompany(
-          name:
-              _nameController.text.trim(),
-          description:
-              _descriptionController.text
-                      .trim()
-                      .isEmpty
-                  ? null
-                  : _descriptionController.text
-                      .trim(),
-          phone:
-              _phoneController.text
-                      .trim()
-                      .isEmpty
-                  ? null
-                  : _phoneController.text
-                      .trim(),
-          address:
-              _addressController.text
-                      .trim()
-                  .isEmpty
-                  ? null
-                  : _addressController.text
-                      .trim(),
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Dados da empresa atualizados com sucesso.'),
+          ),
         );
+
+        context.go('/company');
+        return;
       }
+
+      // Cria a empresa. Ela deve permanecer pendente de aprovação.
+      await _companyService.createCompany(
+        name: _nameController.text.trim(),
+        description: _descriptionController.text.trim().isEmpty
+            ? null
+            : _descriptionController.text.trim(),
+        phone: _phoneController.text.trim().isEmpty
+            ? null
+            : _phoneController.text.trim(),
+        address: _addressController.text.trim().isEmpty
+            ? null
+            : _addressController.text.trim(),
+      );
+
+      // O cadastro já foi salvo; agora tentamos enviar a notificação.
+      
+      try {
+        final result = await Supabase.instance.client.functions.invoke(
+          'notify-company-registration',
+        );
+
+        emailSent = result.status >= 200 && result.status < 300;
+
+        debugPrint('Status da notificação: ${result.status}');
+        debugPrint('Resposta da notificação: ${result.data}');
+      } catch (error, stackTrace) {
+        debugPrint('ERRO AO ENVIAR E-MAIL: $error');
+        debugPrint('STACK TRACE: $stackTrace');
+        emailSent = false;
+      }
+
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
-        SnackBar(
-          content: Text(
-            _editing
-                ? 'Dados da empresa atualizados com sucesso.'
-                : 'Empresa criada com sucesso.',
-          ),
-        ),
-      );
+      setState(() => _saving = false);
 
-      context.go('/company');
-    } catch (e) {
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) {
+          return AlertDialog(
+            title: const Text('Cadastro recebido'),
+            content: Text(
+              emailSent
+                  ? 'Recebemos os dados da sua empresa! '
+                      'Nossa equipe entrará em contato pelo WhatsApp informado. '
+                      'Aguarde nosso contato. '
+                      'Seu acesso será liberado após a aprovação.'
+                  : 'Os dados da sua empresa foram salvos, mas não conseguimos '
+                      'enviar a notificação para nossa equipe. '
+                      'Seu cadastro continua pendente. '
+                      'Entre novamente para tentar reenviar a solicitação.',
+            ),
+            actions: [
+              FilledButton(
+                onPressed: () async {
+                  Navigator.of(dialogContext).pop();
+
+                  await Supabase.instance.client.auth.signOut();
+
+                  if (mounted) {
+                    context.go('/login');
+                  }
+                },
+                child: const Text('Voltar ao login'),
+              ),
+            ],
+          );
+        },
+      );
+    } catch (error) {
       if (!mounted) return;
 
       setState(() {
         _saving = false;
-
-        _error = e
-            .toString()
-            .replaceFirst(
-              'Exception: ',
-              '',
-            );
+        _error = 'Não foi possível cadastrar a empresa: $error';
       });
     }
   }

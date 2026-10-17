@@ -242,7 +242,7 @@ class _CustomerHomePageState
     return Scaffold(
       appBar: AppBar(
         title: const Text(
-          'Fideliza',
+          'Fidelito',
         ),
         actions: [
           IconButton(

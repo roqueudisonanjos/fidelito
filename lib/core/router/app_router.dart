@@ -24,6 +24,7 @@ import '../../pages/company/company_reports_page.dart';
 import '../../pages/profile/edit_profile_page.dart';
 
 import '../../pages/company/company_customers_page.dart';
+import '../../pages/company/company_pending_page.dart';
 
 final authService = AuthService();
 final companyService = CompanyService();
@@ -76,11 +77,12 @@ final appRouter = GoRouter(
       }
 
       if (role == 'company_owner') {
-        final company =
-            await companyService.getMyCompany();
+        final company = await companyService.getMyCompany();
 
-        if (company == null) {
-          return '/company/setup';
+        if (company == null) return '/company/setup';
+
+        if (company['active'] != true) {
+          return '/company/pending';
         }
 
         return '/company';
@@ -135,6 +137,11 @@ final appRouter = GoRouter(
         }
 
         return '/company/setup';
+      }
+
+      if (company['active'] != true) {
+        if (location == '/company/pending') return null;
+        return '/company/pending';
       }
 
       // -------------------------------------------------------
@@ -207,6 +214,11 @@ final appRouter = GoRouter(
     // =========================================================
     // EMPRESA
     // =========================================================
+
+    GoRoute(
+      path: '/company/pending',
+      builder: (context, state) => const CompanyPendingPage(),
+    ),
 
     GoRoute(
       path: '/company/setup',

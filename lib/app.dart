@@ -10,7 +10,7 @@ class FidelizaApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp.router(
       debugShowCheckedModeBanner: false,
-      title: 'Fideliza',
+      title: 'Fidelito',
       theme: AppTheme.light,
       routerConfig: appRouter,
     );

@@ -119,7 +119,7 @@ class _LoginPageState extends State<LoginPage> {
               children: [
 
                 const Text(
-                  'Fideliza',
+                  'Fidelito',
                   style: TextStyle(
                     fontSize: 36,
                     fontWeight:

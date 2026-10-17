@@ -1,8 +1,8 @@
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AuthService {
-  final SupabaseClient _supabase =
-      Supabase.instance.client;
+  final SupabaseClient _supabase = Supabase.instance.client;
 
   Future<AuthResponse> login({
     required String email,
@@ -19,14 +19,14 @@ class AuthService {
     required String email,
     required String password,
     required String role,
-    String? phone,
+    required String whatsapp,
   }) {
     return _supabase.auth.signUp(
       email: email,
       password: password,
       data: {
         'full_name': name,
-        'phone': phone,
+        'phone': whatsapp,
         'role': role,
       },
     );
