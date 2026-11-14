@@ -125,9 +125,7 @@ class _QrScannerPageState
                 return;
               }
 
-              print('==============================');
-              print('QR CODE LIDO: $value');
-              print('==============================');
+              debugPrint('QR CODE LIDO: $value');
 
               _processQr(value);
             },

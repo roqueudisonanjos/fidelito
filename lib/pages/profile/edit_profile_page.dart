@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../services/profile_service.dart';
+import '../../services/location_service.dart';
 
 class EditProfilePage extends StatefulWidget {
   const EditProfilePage({
@@ -17,6 +18,8 @@ class _EditProfilePageState
   final ProfileService _service =
       ProfileService();
 
+  final LocationService _locationService = LocationService();
+
   final _formKey = GlobalKey<FormState>();
 
   final _nameController =
@@ -24,6 +27,9 @@ class _EditProfilePageState
 
   final _whatsappController =
       TextEditingController();
+
+  final _cityController = TextEditingController();
+  final _stateController = TextEditingController();
 
   bool _loading = true;
   bool _saving = false;
@@ -41,6 +47,8 @@ class _EditProfilePageState
   void dispose() {
     _nameController.dispose();
     _whatsappController.dispose();
+    _cityController.dispose();
+    _stateController.dispose();
 
     super.dispose();
   }
@@ -59,6 +67,8 @@ class _EditProfilePageState
           _formatWhatsapp(
         profile?['whatsapp']?.toString() ?? '',
       );
+      _cityController.text = profile?['city']?.toString() ?? '';
+      _stateController.text = profile?['state']?.toString() ?? '';
 
       setState(() {
         _loading = false;
@@ -92,6 +102,8 @@ class _EditProfilePageState
       await _service.updateProfile(
         fullName: _nameController.text,
         whatsapp: _whatsappController.text,
+        city: _cityController.text,
+        state: _stateController.text,
       );
 
       if (!mounted) return;
@@ -126,6 +138,25 @@ class _EditProfilePageState
           _saving = false;
         });
       }
+    }
+  }
+
+  Future<void> _fillLocation() async {
+    try {
+      final location = await _locationService.getCityAndState();
+      if (!mounted) return;
+      setState(() {
+        _cityController.text = location['city'] ?? '';
+        _stateController.text = location['state'] ?? '';
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Cidade e UF preenchidas pela localização.')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+      );
     }
   }
 
@@ -300,6 +331,50 @@ class _EditProfilePageState
 
                 return null;
               },
+            ),
+
+            const SizedBox(height: 18),
+
+            TextFormField(
+              controller: _cityController,
+              textInputAction: TextInputAction.next,
+              decoration: const InputDecoration(
+                labelText: 'Cidade',
+                prefixIcon: Icon(Icons.location_city_outlined),
+                border: OutlineInputBorder(),
+              ),
+            ),
+
+            const SizedBox(height: 18),
+
+            TextFormField(
+              controller: _stateController,
+              textCapitalization: TextCapitalization.characters,
+              maxLength: 2,
+              decoration: const InputDecoration(
+                labelText: 'Estado (UF)',
+                hintText: 'PA',
+                prefixIcon: Icon(Icons.map_outlined),
+                border: OutlineInputBorder(),
+                counterText: '',
+              ),
+              validator: (value) {
+                if (value != null && value.trim().isNotEmpty && value.trim().length != 2) {
+                  return 'Informe a UF com duas letras.';
+                }
+                return null;
+              },
+            ),
+
+            const SizedBox(height: 8),
+
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: _saving ? null : _fillLocation,
+                icon: const Icon(Icons.my_location),
+                label: const Text('Preencher pela localização do dispositivo'),
+              ),
             ),
 
             const SizedBox(height: 28),

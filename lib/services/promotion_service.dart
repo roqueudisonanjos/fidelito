@@ -12,22 +12,26 @@ class PromotionService {
     String companyId,
   ) async {
     try {
-      final now = DateTime.now().toUtc().toIso8601String();
-
       final response = await _supabase
           .from('promotions')
           .select()
           .eq('company_id', companyId)
           .eq('active', true)
-          .lte('starts_at', now)
-          .gte('ends_at', now)
-          .order('ends_at', ascending: true);
+          .order('points_required');
 
-      return List<Map<String, dynamic>>.from(response);
+      final now = DateTime.now().toUtc();
+      return List<Map<String, dynamic>>.from(response).where((promotion) {
+        final starts = promotion['starts_at'] == null
+            ? null
+            : DateTime.tryParse(promotion['starts_at'].toString())?.toUtc();
+        final ends = promotion['ends_at'] == null
+            ? null
+            : DateTime.tryParse(promotion['ends_at'].toString())?.toUtc();
+        return (starts == null || !now.isBefore(starts)) &&
+            (ends == null || !now.isAfter(ends));
+      }).toList();
     } catch (e) {
-      throw Exception(
-        'Não foi possível carregar as promoções.',
-      );
+      throw Exception('Não foi possível carregar as promoções.');
     }
   }
 

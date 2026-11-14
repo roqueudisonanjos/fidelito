@@ -30,6 +30,9 @@ class _CompanySetupPageState
   final _addressController =
       TextEditingController();
 
+  final _cityController = TextEditingController();
+  final _stateController = TextEditingController();
+
   final CompanyService _companyService =
       CompanyService();
 
@@ -78,6 +81,8 @@ class _CompanySetupPageState
         _addressController.text =
             company['address']?.toString() ??
                 '';
+        _cityController.text = company['city']?.toString() ?? '';
+        _stateController.text = company['state']?.toString() ?? '';
 
         setState(() {
           _editing = true;
@@ -133,6 +138,8 @@ class _CompanySetupPageState
           address: _addressController.text.trim().isEmpty
               ? null
               : _addressController.text.trim(),
+          city: _cityController.text.trim().isEmpty ? null : _cityController.text.trim(),
+          state: _stateController.text.trim().isEmpty ? null : _stateController.text.trim(),
         );
 
         if (!mounted) return;
@@ -159,6 +166,8 @@ class _CompanySetupPageState
         address: _addressController.text.trim().isEmpty
             ? null
             : _addressController.text.trim(),
+        city: _cityController.text.trim().isEmpty ? null : _cityController.text.trim(),
+        state: _stateController.text.trim().isEmpty ? null : _stateController.text.trim(),
       );
 
       // O cadastro já foi salvo; agora tentamos enviar a notificação.
@@ -237,6 +246,8 @@ class _CompanySetupPageState
     _descriptionController.dispose();
     _phoneController.dispose();
     _addressController.dispose();
+    _cityController.dispose();
+    _stateController.dispose();
 
     super.dispose();
   }
@@ -454,9 +465,36 @@ class _CompanySetupPageState
                   ),
                 ),
 
-                const SizedBox(
-                  height: 16,
+                const SizedBox(height: 16),
+
+                TextFormField(
+                  controller: _cityController,
+                  decoration: const InputDecoration(
+                    labelText: 'Cidade',
+                    hintText: 'Ex.: Tucuruí',
+                    prefixIcon: Icon(Icons.location_city),
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (value) => value == null || value.trim().isEmpty
+                      ? 'Informe a cidade da empresa.' : null,
                 ),
+
+                const SizedBox(height: 16),
+
+                TextFormField(
+                  controller: _stateController,
+                  textCapitalization: TextCapitalization.characters,
+                  maxLength: 2,
+                  decoration: const InputDecoration(
+                    labelText: 'UF',
+                    hintText: 'Ex.: PA',
+                    prefixIcon: Icon(Icons.map_outlined),
+                    border: OutlineInputBorder(),
+                    counterText: '',
+                  ),
+                ),
+
+                const SizedBox(height: 16),
 
                 // ==================================================
                 // ERRO

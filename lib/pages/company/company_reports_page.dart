@@ -344,7 +344,7 @@ class _CompanyReportsPageState
 
         DropdownButtonFormField<String>(
 
-          value: _selectedType,
+          initialValue: _selectedType,
 
           decoration:
               const InputDecoration(

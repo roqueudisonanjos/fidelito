@@ -6,6 +6,9 @@ import '../../pages/customer/history_page.dart';
 import '../../pages/auth/login_page.dart';
 import '../../pages/auth/register_page.dart';
 import '../../pages/customer/customer_home_page.dart';
+import '../../pages/customer/explore_page.dart';
+import '../../pages/customer/my_loyalty_programs_page.dart';
+import '../../pages/customer/loyalty_program_page.dart';
 import '../../pages/company/company_home_page.dart';
 import '../../pages/company/company_setup_page.dart';
 import '../../pages/company/generate_qr_page.dart';
@@ -99,6 +102,9 @@ final appRouter = GoRouter(
       // Páginas permitidas para o cliente
       if (location == '/home' ||
           location == '/customer/scan' ||
+          location == '/customer/explore' ||
+          location == '/customer/my-loyalties' ||
+          location == '/customer/loyalty-program' ||
           location == '/customer/promotions' ||
           location == '/customer/my-benefits' ||
           location == '/customer/benefit-detail'||
@@ -202,6 +208,22 @@ final appRouter = GoRouter(
       builder: (context, state) {
         return const CustomerHomePage();
       },
+    ),
+
+
+    GoRoute(
+      path: '/customer/explore',
+      builder: (context, state) => const ExplorePage(),
+    ),
+    GoRoute(
+      path: '/customer/my-loyalties',
+      builder: (context, state) => const MyLoyaltyProgramsPage(),
+    ),
+    GoRoute(
+      path: '/customer/loyalty-program',
+      builder: (context, state) => LoyaltyProgramPage(
+        company: Map<String, dynamic>.from(state.extra as Map),
+      ),
     ),
 
     GoRoute(

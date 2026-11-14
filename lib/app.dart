@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
 
-class FidelizaApp extends StatelessWidget {
-  const FidelizaApp({super.key});
+class FidelitoApp extends StatelessWidget {
+  const FidelitoApp({super.key});
 
   @override
   Widget build(BuildContext context) {

@@ -31,6 +31,23 @@ class DashboardService {
     return company['id'].toString();
   }
 
+
+  Future<int> awardPoints({
+    required String customerId,
+    required int points,
+    String? description,
+  }) async {
+    final result = await _supabase.rpc('award_customer_points', params: {
+      'p_customer_id': customerId,
+      'p_points': points,
+      'p_description': description,
+    });
+    if (result is Map && result['new_balance'] != null) {
+      return (result['new_balance'] as num).toInt();
+    }
+    throw Exception('Não foi possível adicionar os pontos.');
+  }
+
   // ============================================================
   // CLIENTES DA EMPRESA
   // ============================================================
@@ -316,7 +333,7 @@ class DashboardService {
         }
 
         final currentLastDate =
-            DateTime.tryParse(lastBenefitUsedAt!);
+            DateTime.tryParse(lastBenefitUsedAt);
 
         if (currentLastDate == null ||
             date.isAfter(currentLastDate)) {

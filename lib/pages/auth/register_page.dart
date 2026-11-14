@@ -201,36 +201,32 @@ class _RegisterPageState extends State<RegisterPage> {
                   ),
                 ),
 
-                RadioListTile<String>(
-                  value: 'customer',
+                RadioGroup<String>(
                   groupValue: role,
-                  title: const Text('Cliente'),
-                  subtitle: const Text(
-                    'Acumular pontos e receber benefícios',
+                  onChanged: (String? value) {
+                    if (loading || value == null) return;
+                    setState(() {
+                      role = value;
+                    });
+                  },
+                  child: Column(
+                    children: const [
+                      RadioListTile<String>(
+                        value: 'customer',
+                        title: Text('Cliente'),
+                        subtitle: Text(
+                          'Acumular pontos e receber benefícios',
+                        ),
+                      ),
+                      RadioListTile<String>(
+                        value: 'company_owner',
+                        title: Text('Empresa'),
+                        subtitle: Text(
+                          'Criar programa de fidelidade',
+                        ),
+                      ),
+                    ],
                   ),
-                  onChanged: loading
-                      ? null
-                      : (value) {
-                          setState(() {
-                            role = value!;
-                          });
-                        },
-                ),
-
-                RadioListTile<String>(
-                  value: 'company_owner',
-                  groupValue: role,
-                  title: const Text('Empresa'),
-                  subtitle: const Text(
-                    'Criar programa de fidelidade',
-                  ),
-                  onChanged: loading
-                      ? null
-                      : (value) {
-                          setState(() {
-                            role = value!;
-                          });
-                        },
                 ),
 
                 if (message != null) ...[

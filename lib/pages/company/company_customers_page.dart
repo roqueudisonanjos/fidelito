@@ -508,6 +508,17 @@ class _CompanyCustomersPageState
             ],
           ),
 
+          const SizedBox(height: 16),
+
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () => _showAwardPointsDialog(customer),
+              icon: const Icon(Icons.add_circle_outline),
+              label: const Text('Adicionar pontos manualmente'),
+            ),
+          ),
+
           const SizedBox(
             height: 20,
           ),
@@ -575,6 +586,82 @@ class _CompanyCustomersPageState
   // ============================================================
   // CARD DE PONTOS
   // ============================================================
+
+  Future<void> _showAwardPointsDialog(Map<String, dynamic> customer) async {
+    final pointsController = TextEditingController();
+    final descriptionController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+    final customerId = customer['customer_id']?.toString() ?? customer['id']?.toString();
+    if (customerId == null || customerId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Não foi possível identificar este cliente.')),
+      );
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Adicionar pontos'),
+        content: Form(
+          key: formKey,
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Text('Cliente: ${customer['full_name'] ?? 'Cliente'}'),
+            const SizedBox(height: 14),
+            TextFormField(
+              controller: pointsController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: 'Quantidade de pontos', border: OutlineInputBorder()),
+              validator: (value) {
+                final points = int.tryParse(value ?? '');
+                if (points == null || points <= 0 || points > 10000) return 'Informe um valor entre 1 e 10.000.';
+                return null;
+              },
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: descriptionController,
+              maxLength: 120,
+              decoration: const InputDecoration(labelText: 'Observação (opcional)', border: OutlineInputBorder()),
+            ),
+          ]),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancelar')),
+          FilledButton(onPressed: () {
+            if (formKey.currentState!.validate()) Navigator.pop(dialogContext, true);
+          }, child: const Text('Adicionar')),
+        ],
+      ),
+    );
+
+    if (confirmed != true) {
+      pointsController.dispose();
+      descriptionController.dispose();
+      return;
+    }
+
+    try {
+      final newBalance = await _service.awardPoints(
+        customerId: customerId,
+        points: int.parse(pointsController.text),
+        description: descriptionController.text.trim().isEmpty ? null : descriptionController.text.trim(),
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Pontos adicionados. Novo saldo: $newBalance pontos.')),
+      );
+      await _loadCustomers();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+      );
+    } finally {
+      pointsController.dispose();
+      descriptionController.dispose();
+    }
+  }
 
   Widget _buildPointsCard({
     required IconData icon,
@@ -880,10 +967,8 @@ class _CompanyCustomersPageState
                   // AVISO DE VENCIMENTO
                   // ------------------------------------------------
 
-                  if (daysRemaining !=
-                          null &&
-                      daysRemaining! >=
-                          0) ...[
+                  if (daysRemaining != null &&
+                      daysRemaining >= 0) ...[
                     const SizedBox(
                       height: 6,
                     ),
@@ -906,7 +991,7 @@ class _CompanyCustomersPageState
                         Expanded(
                           child: Text(
                             _expirationMessage(
-                              daysRemaining!,
+                              daysRemaining,
                             ),
                             style:
                                 const TextStyle(
@@ -952,26 +1037,6 @@ class _CompanyCustomersPageState
   // ============================================================
   // WHATSAPP
   // ============================================================
-
-  Widget _buildWhatsAppButton(
-    String? whatsapp,
-  ) {
-    final valid =
-        whatsapp != null &&
-            whatsapp.isNotEmpty &&
-            whatsapp != 'null';
-
-    return IconButton(
-      tooltip:
-          'Enviar mensagem no WhatsApp',
-      onPressed: valid
-          ? () => _openWhatsApp(whatsapp!)
-          : null,
-      icon: const Icon(
-        Icons.chat_rounded,
-      ),
-    );
-  }
 
   Future<void> _openWhatsApp(
     String whatsapp,

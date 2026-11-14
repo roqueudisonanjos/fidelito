@@ -613,6 +613,9 @@ class _CompanyHomePageState extends State<CompanyHomePage> {
                                 },
                               );
 
+                              final dialogNavigator = Navigator.of(dialogContext);
+                              final messenger = ScaffoldMessenger.of(context);
+
                               try {
                                 final points =
                                     int.parse(
@@ -682,14 +685,9 @@ class _CompanyHomePageState extends State<CompanyHomePage> {
                                   return;
                                 }
 
-                                Navigator.pop(
-                                  dialogContext,
-                                );
+                                dialogNavigator.pop();
 
-                                ScaffoldMessenger
-                                    .of(
-                                  context,
-                                ).showSnackBar(
+                                messenger.showSnackBar(
                                   const SnackBar(
                                     content:
                                         Text(
@@ -704,10 +702,7 @@ class _CompanyHomePageState extends State<CompanyHomePage> {
                                   return;
                                 }
 
-                                ScaffoldMessenger
-                                    .of(
-                                  context,
-                                ).showSnackBar(
+                                messenger.showSnackBar(
                                   SnackBar(
                                     content:
                                         Text(
@@ -1291,6 +1286,24 @@ class _CompanyHomePageState extends State<CompanyHomePage> {
                   ),
                 ),
               ],
+            ),
+
+            const SizedBox(height: 14),
+
+            // --------------------------------------------------
+            // ADICIONAR PONTOS MANUALMENTE
+            // --------------------------------------------------
+
+            SizedBox(
+              width: double.infinity,
+              child: _ActionCard(
+                icon: Icons.add_circle_outline_rounded,
+                title: 'Adicionar pontos manualmente',
+                subtitle: 'Escolher um cliente',
+                onTap: () {
+                  context.push('/company/customers');
+                },
+              ),
             ),
 
             const SizedBox(height: 16),

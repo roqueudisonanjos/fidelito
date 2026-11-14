@@ -19,7 +19,7 @@ class CompanyService {
     final company = await _supabase
         .from('companies')
         .select(
-          'id, owner_id, name, description, phone, address, logo_url, active',
+          'id, owner_id, name, description, phone, address, city, state, logo_url, active',
         )
         .eq(
           'owner_id',
@@ -39,6 +39,8 @@ class CompanyService {
     String? description,
     String? phone,
     String? address,
+    String? city,
+    String? state,
   }) async {
     final user = _supabase.auth.currentUser;
 
@@ -70,6 +72,8 @@ class CompanyService {
           'description': description,
           'phone': phone,
           'address': address,
+          'city': city,
+          'state': state?.trim().toUpperCase(),
           'updated_at':
               DateTime.now().toIso8601String(),
         })
@@ -84,6 +88,8 @@ class CompanyService {
     String? description,
     String? phone,
     String? address,
+    String? city,
+    String? state,
   }) async {
     final result = await _supabase.rpc(
       'create_company',
@@ -92,6 +98,8 @@ class CompanyService {
         'p_description': description,
         'p_phone': phone,
         'p_address': address,
+        'p_city': city,
+        'p_state': state,
       },
     );
 

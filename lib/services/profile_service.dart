@@ -23,6 +23,8 @@ class ProfileService {
   Future<void> updateProfile({
     required String fullName,
     required String whatsapp,
+    required String city,
+    required String state,
   }) async {
     final user = _supabase.auth.currentUser;
 
@@ -38,6 +40,8 @@ class ProfileService {
             RegExp(r'\D'),
             '',
           ),
+          'city': city.trim().isEmpty ? null : city.trim(),
+          'state': state.trim().isEmpty ? null : state.trim().toUpperCase(),
         })
         .eq('id', user.id);
   }

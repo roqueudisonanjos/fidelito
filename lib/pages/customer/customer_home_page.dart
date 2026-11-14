@@ -33,7 +33,7 @@ class _CustomerHomePageState
 
   String customerName = '';
 
-  int points = 0;
+  Map<String, int> companyPoints = {};
 
   List<Promotion> promotions = [];
 
@@ -52,7 +52,8 @@ class _CustomerHomePageState
   Future<void> redeemPromotion(
     Promotion promotion,
   ) async {
-    if (points < promotion.pointsRequired) {
+    final availablePoints = companyPoints[promotion.companyId] ?? 0;
+    if (availablePoints < promotion.pointsRequired) {
       ScaffoldMessenger.of(context)
           .showSnackBar(
         const SnackBar(
@@ -179,7 +180,7 @@ class _CustomerHomePageState
       final results =
           await Future.wait([
         customerService.getProfile(),
-        customerService.getPoints(),
+        customerService.getPointsByCompany(),
         customerService.getPromotions(),
         customerService.getTransactions(),
       ]);
@@ -188,15 +189,14 @@ class _CustomerHomePageState
           results[0]
               as Map<String, dynamic>?;
 
-      final loadedPoints =
-          results[1] as int;
+      final loadedCompanyPoints =
+          results[1] as Map<String, int>;
 
       final loadedPromotions =
           results[2] as List<Promotion>;
 
       final loadedTransactions =
-          results[3]
-              as List<LoyaltyTransaction>;
+          results[3] as List<LoyaltyTransaction>;
 
       if (!mounted) return;
 
@@ -205,7 +205,7 @@ class _CustomerHomePageState
             profile?['full_name'] ??
             'Cliente';
 
-        points = loadedPoints;
+        companyPoints = loadedCompanyPoints;
 
         promotions =
             loadedPromotions;
@@ -253,6 +253,13 @@ class _CustomerHomePageState
           ),
         ],
       ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+      floatingActionButton: FloatingActionButton.large(
+        tooltip: 'Escanear QR Code',
+        onPressed: _openScanner,
+        child: const Icon(Icons.qr_code_scanner, size: 30),
+      ),
+      bottomNavigationBar: _buildBottomNavigationBar(),
       body: RefreshIndicator(
         onRefresh: loadData,
         child: loading
@@ -327,23 +334,7 @@ class _CustomerHomePageState
           ),
         ),
 
-        const SizedBox(height: 24),
-
-        _buildPointsCard(),
-
-        const SizedBox(height: 20),
-
-        _buildScanButton(),
-
-        const SizedBox(height: 12),
-
-        _buildMyBenefitsButton(),
-
-        const SizedBox(height: 12),
-
-        _buildProfileButton(),
-
-        const SizedBox(height: 32),
+        const SizedBox(height: 28),
 
         _buildPromotions(),
 
@@ -375,70 +366,35 @@ class _CustomerHomePageState
     );
   }
 
-  Widget _buildPointsCard() {
-    return Card(
-      elevation: 0,
-      child: Padding(
-        padding:
-            const EdgeInsets.all(24),
+  Widget _buildBottomNavigationBar() {
+    return BottomAppBar(
+      shape: const CircularNotchedRectangle(),
+      notchMargin: 8,
+      child: SizedBox(
+        height: 62,
         child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
-            Container(
-              width: 64,
-              height: 64,
-              decoration:
-                  BoxDecoration(
-                color:
-                    Theme.of(context)
-                        .colorScheme
-                        .primaryContainer,
-                borderRadius:
-                    BorderRadius.circular(
-                  18,
-                ),
-              ),
-              child: Icon(
-                Icons.stars,
-                size: 34,
-                color:
-                    Theme.of(context)
-                        .colorScheme
-                        .onPrimaryContainer,
-              ),
+            IconButton(
+              tooltip: 'Explorar empresas',
+              onPressed: () => context.push('/customer/explore'),
+              icon: const Icon(Icons.explore_outlined),
             ),
-
-            const SizedBox(
-              width: 18,
+            IconButton(
+              tooltip: 'Minhas fidelidades',
+              onPressed: () => context.push('/customer/my-loyalties'),
+              icon: const Icon(Icons.loyalty_outlined),
             ),
-
-            Expanded(
-              child: Column(
-                crossAxisAlignment:
-                    CrossAxisAlignment
-                        .start,
-                children: [
-                  const Text(
-                    'Meus pontos',
-                    style: TextStyle(
-                      color: Colors.grey,
-                    ),
-                  ),
-
-                  const SizedBox(
-                    height: 4,
-                  ),
-
-                  Text(
-                    '$points pontos',
-                    style:
-                        const TextStyle(
-                      fontSize: 28,
-                      fontWeight:
-                          FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
+            const SizedBox(width: 76),
+            IconButton(
+              tooltip: 'Meus benefícios',
+              onPressed: () => context.push('/customer/my-benefits'),
+              icon: const Icon(Icons.card_giftcard_outlined),
+            ),
+            IconButton(
+              tooltip: 'Dados cadastrais',
+              onPressed: _openProfile,
+              icon: const Icon(Icons.person_outline),
             ),
           ],
         ),
@@ -446,61 +402,16 @@ class _CustomerHomePageState
     );
   }
 
-  Widget _buildMyBenefitsButton() {
-    return SizedBox(
-      width: double.infinity,
-      height: 54,
-      child: OutlinedButton.icon(
-        onPressed: () async {
-          await context.push(
-            '/customer/my-benefits',
-          );
-        },
-        icon: const Icon(
-          Icons.card_giftcard,
-        ),
-        label: const Text(
-          'Meus benefícios',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight:
-                FontWeight.bold,
-          ),
-        ),
-      ),
-    );
+  Future<void> _openScanner() async {
+    final result = await context.push<bool>('/customer/scan');
+    if (!mounted) return;
+    if (result == true) await loadData();
   }
 
-  Widget _buildScanButton() {
-    return SizedBox(
-      width: double.infinity,
-      height: 58,
-      child: ElevatedButton.icon(
-        onPressed: () async {
-          final result =
-              await context.push<bool>(
-            '/customer/scan',
-          );
-
-          if (!mounted) return;
-
-          if (result == true) {
-            await loadData();
-          }
-        },
-        icon: const Icon(
-          Icons.qr_code_scanner,
-        ),
-        label: const Text(
-          'Escanear QR Code',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight:
-                FontWeight.bold,
-          ),
-        ),
-      ),
-    );
+  Future<void> _openProfile() async {
+    final result = await context.push<bool>('/profile/edit');
+    if (!mounted) return;
+    if (result == true) await loadData();
   }
 
   Widget _buildPromotions() {
@@ -539,43 +450,11 @@ class _CustomerHomePageState
     );
   }
 
-  Widget _buildProfileButton() {
-    return SizedBox(
-      width: double.infinity,
-      height: 54,
-      child: OutlinedButton.icon(
-        onPressed: () async {
-          final result =
-              await context.push<bool>(
-            '/profile/edit',
-          );
-
-          if (!mounted) return;
-
-          if (result == true) {
-            await loadData();
-          }
-        },
-        icon: const Icon(
-          Icons.person_outline,
-        ),
-        label: const Text(
-          'Dados cadastrais',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildPromotionCard(
     Promotion promotion,
   ) {
-    final canRedeem =
-        points >=
-        promotion.pointsRequired;
+    final availablePoints = companyPoints[promotion.companyId] ?? 0;
+    final canRedeem = availablePoints >= promotion.pointsRequired;
 
     String rewardText;
 
@@ -701,7 +580,7 @@ class _CustomerHomePageState
             Text(
               canRedeem
                   ? 'Você já pode resgatar este benefício.'
-                  : 'Faltam ${promotion.pointsRequired - points} pontos.',
+                  : 'Faltam ${promotion.pointsRequired - availablePoints} pontos nesta empresa.',
               style: TextStyle(
                 color: canRedeem
                     ? Colors.green

@@ -29,5 +29,5 @@ Future<void> main() async {
     publishableKey: AppConfig.supabasePublishableKey,
   );
 
-  runApp(const FidelizaApp());
+  runApp(const FidelitoApp());
 }
