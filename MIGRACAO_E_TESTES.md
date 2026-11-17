@@ -49,3 +49,21 @@ Use dois usuários clientes e duas empresas ativas diferentes.
 ## Limitação de validação nesta entrega
 
 O ambiente de trabalho não possui Flutter/Dart instalado e não há credenciais para conectar ao Supabase. Portanto, não foi possível executar `flutter analyze`, compilar o app ou testar as funções no banco. A migração é um arquivo para revisão e execução pelo responsável do projeto; nada foi aplicado no Supabase de produção.
+
+## Migração adicional — saída de programa e perda de pontos
+
+Depois das migrações `20261113000100_multi_company_loyalty.sql` e `20261114000100_profile_location_and_manual_points.sql`, execute também `20261115000100_membership_exit_password_help.sql`.
+
+Ela adiciona `loyalty_accounts.left_at`, registra a saída do cliente sem apagar transações/resgates, zera o saldo e impede novas pontuações ou resgates enquanto a adesão estiver encerrada. Ao entrar novamente, o cliente começa com zero pontos.
+
+Veja `NOVAS_ALTERACOES_15_11_2026.md` para os detalhes, configuração do WhatsApp de suporte e procedimento seguro de recuperação de senha.
+
+
+## Suspensão administrativa de empresas (16/11/2026)
+
+Execute também `supabase/migrations/20261116000100_company_suspension.sql` antes de publicar a nova versão. Depois publique `supabase functions deploy admin-console`. Teste: suspender empresa com clientes ativos; conferir notificação em cada conta cliente; confirmar que o saldo não foi zerado e que o resgate/pontuação fica indisponível; confirmar bloqueio de novo login do responsável e redirecionamento automático (em até 12 segundos) de sessão já aberta para `/company/suspended`; reativar e confirmar liberação do login e disponibilidade dos saldos preservados.
+
+
+## Atualização 16/11/2026 — contas e imagens
+
+Execute no SQL Editor do Supabase a migração `supabase/migrations/20261116000200_profiles_and_reward_images_account_rules.sql`. Em seguida, na pasta do Flutter, execute `flutter pub get` (nova dependência `image_picker`), `flutter analyze` e `flutter test`. A migração adiciona `profiles.avatar_url`, `promotions.image_url`, configura o bucket `fidelito-images` e exige que a empresa esteja desativada antes da exclusão definitiva.

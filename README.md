@@ -19,3 +19,12 @@ Use somente a chave pública `publishable` (ou a antiga `anon`) no aplicativo. N
 - `20261114000100_profile_location_and_manual_points.sql`: adiciona cidade/UF ao perfil, grants de atualização necessários e RPC segura para pontuação manual (execute depois).
 
 Veja `ALTERACOES_14_11_2026.md` para detalhes e roteiro de testes.
+
+## Painel administrativo
+
+A versão inclui o painel administrativo e a Edge Function `admin-console`. Consulte `PAINEL_ADMINISTRATIVO.md` para criar o primeiro administrador, aplicar a migração, implantar a função e configurar os links de recuperação do Supabase Auth.
+
+
+## Atualização 16/11/2026 — contas e imagens
+
+Execute no SQL Editor do Supabase a migração `supabase/migrations/20261116000200_profiles_and_reward_images_account_rules.sql`. Em seguida, na pasta do Flutter, execute `flutter pub get` (nova dependência `image_picker`), `flutter analyze` e `flutter test`. A migração adiciona `profiles.avatar_url`, `promotions.image_url`, configura o bucket `fidelito-images` e exige que a empresa esteja desativada antes da exclusão definitiva.

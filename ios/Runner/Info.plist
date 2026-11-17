@@ -68,5 +68,7 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+    <key>NSPhotoLibraryUsageDescription</key>
+    <string>O Fidelito precisa acessar suas fotos para você escolher a imagem do perfil, da empresa ou das recompensas.</string>
 </dict>
 </plist>

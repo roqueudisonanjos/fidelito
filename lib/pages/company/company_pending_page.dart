@@ -1,7 +1,8 @@
-
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../services/support_service.dart';
+import '../../widgets/delete_account_section.dart';
 
 class CompanyPendingPage extends StatefulWidget {
   const CompanyPendingPage({super.key});
@@ -69,6 +70,11 @@ class _CompanyPendingPageState extends State<CompanyPendingPage> {
         automaticallyImplyLeading: false,
         actions: [
           IconButton(
+            tooltip: 'Suporte ApoloApps',
+            onPressed: () => SupportService.openWhatsApp(context),
+            icon: const Icon(Icons.support_agent_rounded),
+          ),
+          IconButton(
             tooltip: 'Sair',
             onPressed: _logout,
             icon: const Icon(Icons.logout),
@@ -106,24 +112,21 @@ class _CompanyPendingPageState extends State<CompanyPendingPage> {
                 SizedBox(
                   width: double.infinity,
                   child: FilledButton.icon(
-                    onPressed:
-                        _sending ? null : _resendNotification,
+                    onPressed: _sending ? null : _resendNotification,
                     icon: _sending
                         ? const SizedBox(
                             width: 18,
                             height: 18,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                            ),
+                            child: CircularProgressIndicator(strokeWidth: 2),
                           )
                         : const Icon(Icons.mark_email_unread_outlined),
                     label: Text(
-                      _sending
-                          ? 'Enviando...'
-                          : 'Reenviar solicitação',
+                      _sending ? 'Enviando...' : 'Reenviar solicitação',
                     ),
                   ),
                 ),
+                const SizedBox(height: 20),
+                const DeleteAccountSection(isCompany: true),
                 const SizedBox(height: 12),
                 TextButton(
                   onPressed: _logout,

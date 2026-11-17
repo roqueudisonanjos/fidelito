@@ -3,22 +3,16 @@ import 'package:flutter/material.dart';
 import '../../services/benefit_service.dart';
 
 class ValidateBenefitPage extends StatefulWidget {
-  const ValidateBenefitPage({
-    super.key,
-  });
+  const ValidateBenefitPage({super.key});
 
   @override
-  State<ValidateBenefitPage> createState() =>
-      _ValidateBenefitPageState();
+  State<ValidateBenefitPage> createState() => _ValidateBenefitPageState();
 }
 
-class _ValidateBenefitPageState
-    extends State<ValidateBenefitPage> {
-  final BenefitService _service =
-      BenefitService();
+class _ValidateBenefitPageState extends State<ValidateBenefitPage> {
+  final BenefitService _service = BenefitService();
 
-  final TextEditingController _controller =
-      TextEditingController();
+  final TextEditingController _controller = TextEditingController();
 
   bool _loading = false;
   bool _validating = false;
@@ -26,13 +20,11 @@ class _ValidateBenefitPageState
   String? _error;
 
   Future<void> _validateBenefit() async {
-    final redemptionId =
-        _controller.text.trim();
+    final redemptionId = _controller.text.trim();
 
     if (redemptionId.isEmpty) {
       setState(() {
-        _error =
-            'Informe o código do benefício.';
+        _error = 'Informe o código da recompensa.';
       });
 
       return;
@@ -44,10 +36,7 @@ class _ValidateBenefitPageState
     });
 
     try {
-      final result =
-          await _service.getBenefitById(
-        redemptionId,
-      );
+      final result = await _service.getBenefitById(redemptionId);
 
       if (!mounted) return;
 
@@ -57,8 +46,7 @@ class _ValidateBenefitPageState
 
       if (result == null) {
         setState(() {
-          _error =
-              'Benefício não encontrado.';
+          _error = 'Recompensa não encontrado.';
         });
 
         return;
@@ -70,45 +58,29 @@ class _ValidateBenefitPageState
 
       setState(() {
         _loading = false;
-        _error = e.toString().replaceFirst(
-              'Exception: ',
-              '',
-            );
+        _error = e.toString().replaceFirst('Exception: ', '');
       });
     }
   }
 
-  Future<void> _showBenefitConfirmation(
-    Map<String, dynamic> benefit,
-  ) async {
-    final promotion =
-        benefit['promotions']
-            as Map<String, dynamic>?;
+  Future<void> _showBenefitConfirmation(Map<String, dynamic> benefit) async {
+    final promotion = benefit['promotions'] as Map<String, dynamic>?;
 
-    final customer =
-        benefit['profiles']
-            as Map<String, dynamic>?;
+    final customer = benefit['profiles'] as Map<String, dynamic>?;
 
-    final title =
-        promotion?['title'] ??
-            'Benefício';
+    final title = promotion?['title'] ?? 'Recompensa';
 
-    final customerName =
-        customer?['full_name'] ??
-            'Cliente';
+    final customerName = customer?['full_name'] ?? 'Cliente';
 
-    final points =
-        benefit['points_spent'] ?? 0;
+    final points = benefit['points_spent'] ?? 0;
 
-    final status =
-        benefit['status'] ?? 'available';
+    final status = benefit['status'] ?? 'available';
 
     if (status != 'available') {
       setState(() {
-        _error =
-            status == 'used'
-                ? 'Este benefício já foi utilizado.'
-                : 'Este benefício não está disponível.';
+        _error = status == 'used'
+            ? 'Esta recompensa já foi utilizada.'
+            : 'Esta recompensa não está disponível.';
       });
 
       return;
@@ -118,40 +90,48 @@ class _ValidateBenefitPageState
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text(
-            'Validar benefício',
-          ),
+          title: const Text('Validar recompensa'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment:
-                CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Cliente',
-                style: TextStyle(
-                  color: Colors.grey,
-                ),
-              ),
-
-              const SizedBox(height: 4),
-
-              Text(
-                customerName.toString(),
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight:
-                      FontWeight.bold,
-                ),
+              Row(
+                children: [
+                  CircleAvatar(
+                    radius: 24,
+                    backgroundImage:
+                        (customer?['avatar_url'] ?? '').toString().isNotEmpty
+                        ? NetworkImage(customer!['avatar_url'].toString())
+                        : null,
+                    child: (customer?['avatar_url'] ?? '').toString().isNotEmpty
+                        ? null
+                        : const Icon(Icons.person_outline),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Cliente',
+                          style: TextStyle(color: Colors.grey),
+                        ),
+                        Text(
+                          customerName.toString(),
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
 
               const SizedBox(height: 18),
 
-              const Text(
-                'Benefício',
-                style: TextStyle(
-                  color: Colors.grey,
-                ),
-              ),
+              const Text('Recompensa', style: TextStyle(color: Colors.grey)),
 
               const SizedBox(height: 4),
 
@@ -159,22 +139,17 @@ class _ValidateBenefitPageState
                 title.toString(),
                 style: const TextStyle(
                   fontSize: 18,
-                  fontWeight:
-                      FontWeight.bold,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
 
               const SizedBox(height: 18),
 
-              Text(
-                '$points pontos utilizados',
-              ),
+              Text('$points pontos utilizados'),
 
               const SizedBox(height: 18),
 
-              const Text(
-                'Deseja confirmar que este benefício foi utilizado?',
-              ),
+              const Text('Deseja confirmar que esta recompensa foi utilizada?'),
             ],
           ),
           actions: [
@@ -182,21 +157,15 @@ class _ValidateBenefitPageState
               onPressed: () {
                 Navigator.pop(context);
               },
-              child: const Text(
-                'Cancelar',
-              ),
+              child: const Text('Cancelar'),
             ),
             ElevatedButton(
               onPressed: () async {
                 Navigator.pop(context);
 
-                await _useBenefit(
-                  benefit['id'].toString(),
-                );
+                await _useBenefit(benefit['id'].toString());
               },
-              child: const Text(
-                'Confirmar utilização',
-              ),
+              child: const Text('Confirmar utilização'),
             ),
           ],
         );
@@ -204,18 +173,14 @@ class _ValidateBenefitPageState
     );
   }
 
-  Future<void> _useBenefit(
-    String redemptionId,
-  ) async {
+  Future<void> _useBenefit(String redemptionId) async {
     setState(() {
       _validating = true;
       _error = null;
     });
 
     try {
-      await _service.useBenefit(
-        redemptionId,
-      );
+      await _service.useBenefit(redemptionId);
 
       if (!mounted) return;
 
@@ -228,20 +193,14 @@ class _ValidateBenefitPageState
         barrierDismissible: false,
         builder: (context) {
           return AlertDialog(
-            title: const Text(
-              'Benefício utilizado! 🎉',
-            ),
-            content: const Text(
-              'O benefício foi validado com sucesso.',
-            ),
+            title: const Text('Recompensa utilizada! 🎉'),
+            content: const Text('A recompensa foi validada com sucesso.'),
             actions: [
               TextButton(
                 onPressed: () {
                   Navigator.pop(context);
                 },
-                child: const Text(
-                  'OK',
-                ),
+                child: const Text('OK'),
               ),
             ],
           );
@@ -255,12 +214,7 @@ class _ValidateBenefitPageState
       setState(() {
         _validating = false;
 
-        _error = e
-            .toString()
-            .replaceFirst(
-              'Exception: ',
-              '',
-            );
+        _error = e.toString().replaceFirst('Exception: ', '');
       });
     }
   }
@@ -272,62 +226,39 @@ class _ValidateBenefitPageState
   }
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'Validar benefício',
-        ),
-      ),
+      appBar: AppBar(title: const Text('Validar recompensa')),
       body: SingleChildScrollView(
-        padding:
-            const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(20),
         child: Column(
-          crossAxisAlignment:
-              CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Icon(
-              Icons.verified_outlined,
-              size: 64,
-            ),
+            const Icon(Icons.verified_outlined, size: 64),
 
             const SizedBox(height: 20),
 
             const Text(
-              'Validar benefício do cliente',
-              style: TextStyle(
-                fontSize: 26,
-                fontWeight:
-                    FontWeight.bold,
-              ),
+              'Validar recompensa do cliente',
+              style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
             ),
 
             const SizedBox(height: 8),
 
             const Text(
-              'Informe o código do benefício apresentado pelo cliente.',
-              style: TextStyle(
-                color: Colors.grey,
-              ),
+              'Informe o código da recompensa apresentado pelo cliente.',
+              style: TextStyle(color: Colors.grey),
             ),
 
             const SizedBox(height: 28),
 
             TextField(
               controller: _controller,
-              decoration:
-                  const InputDecoration(
-                labelText:
-                    'Código do benefício',
-                hintText:
-                    'Cole ou digite o código',
-                border:
-                    OutlineInputBorder(),
-                prefixIcon: Icon(
-                  Icons.qr_code,
-                ),
+              decoration: const InputDecoration(
+                labelText: 'Código da recompensa',
+                hintText: 'Cole ou digite o código',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.qr_code),
               ),
             ),
 
@@ -335,60 +266,30 @@ class _ValidateBenefitPageState
 
             if (_error != null)
               Container(
-                width:
-                    double.infinity,
-                padding:
-                    const EdgeInsets.all(
-                  14,
+                width: double.infinity,
+                padding: const EdgeInsets.all(14),
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: Colors.red.withValues(alpha: .08),
+                  borderRadius: BorderRadius.circular(10),
                 ),
-                margin:
-                    const EdgeInsets.only(
-                  bottom: 16,
-                ),
-                decoration:
-                    BoxDecoration(
-                  color: Colors.red
-                      .withValues(alpha: .08),
-                  borderRadius:
-                      BorderRadius.circular(
-                    10,
-                  ),
-                ),
-                child: Text(
-                  _error!,
-                  style:
-                      const TextStyle(
-                    color: Colors.red,
-                  ),
-                ),
+                child: Text(_error!, style: const TextStyle(color: Colors.red)),
               ),
 
             SizedBox(
-              width:
-                  double.infinity,
+              width: double.infinity,
               height: 54,
               child: ElevatedButton.icon(
-                onPressed:
-                    _loading ||
-                            _validating
-                        ? null
-                        : _validateBenefit,
+                onPressed: _loading || _validating ? null : _validateBenefit,
                 icon: _loading
                     ? const SizedBox(
                         width: 20,
                         height: 20,
-                        child:
-                            CircularProgressIndicator(
-                          strokeWidth: 2,
-                        ),
+                        child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : const Icon(
-                        Icons.search,
-                      ),
+                    : const Icon(Icons.search),
                 label: Text(
-                  _loading
-                      ? 'Consultando...'
-                      : 'Consultar benefício',
+                  _loading ? 'Consultando...' : 'Consultar recompensa',
                 ),
               ),
             ),
@@ -396,10 +297,7 @@ class _ValidateBenefitPageState
             if (_validating) ...[
               const SizedBox(height: 24),
 
-              const Center(
-                child:
-                    CircularProgressIndicator(),
-              ),
+              const Center(child: CircularProgressIndicator()),
             ],
           ],
         ),

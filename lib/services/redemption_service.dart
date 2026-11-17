@@ -9,9 +9,7 @@ class RedemptionService {
     final user = _supabase.auth.currentUser;
 
     if (user == null) {
-      throw Exception(
-        'Usuário não autenticado.',
-      );
+      throw Exception('Usuário não autenticado.');
     }
 
     final response = await _supabase
@@ -39,19 +37,14 @@ class RedemptionService {
             name
           )
         ''')
-        .eq(
-          'customer_id',
-          user.id,
+        .eq('customer_id', user.id)
+        .order('created_at', ascending: false);
+
+    return (response as List)
+        .map(
+          (item) =>
+              PromotionRedemption.fromMap(Map<String, dynamic>.from(item)),
         )
-        .order(
-          'created_at',
-          ascending: false,
-        );
-
-    return (response as List).map((item) =>PromotionRedemption.fromMap(
-        Map<String, dynamic>.from(item),
-      ),
-    ).toList();
-
+        .toList();
   }
 }

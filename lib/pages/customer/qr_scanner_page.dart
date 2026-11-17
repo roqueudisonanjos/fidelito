@@ -7,22 +7,17 @@ class QrScannerPage extends StatefulWidget {
   const QrScannerPage({super.key});
 
   @override
-  State<QrScannerPage> createState() =>
-      _QrScannerPageState();
+  State<QrScannerPage> createState() => _QrScannerPageState();
 }
 
-class _QrScannerPageState
-    extends State<QrScannerPage> {
-
+class _QrScannerPageState extends State<QrScannerPage> {
   final QrService _qrService = QrService();
 
   bool _processing = false;
 
   String? _error;
 
-  Future<void> _processQr(
-    String code,
-  ) async {
+  Future<void> _processQr(String code) async {
     if (_processing) {
       return;
     }
@@ -33,16 +28,11 @@ class _QrScannerPageState
     });
 
     try {
-      final result =
-          await _qrService.redeemQrCode(
-        code,
-      );
+      final result = await _qrService.redeemQrCode(code);
 
-      final points =
-          result['points_earned'];
+      final points = result['points_earned'];
 
-      final balance =
-          result['new_balance'];
+      final balance = result['new_balance'];
 
       if (!mounted) return;
 
@@ -51,9 +41,7 @@ class _QrScannerPageState
         barrierDismissible: false,
         builder: (context) {
           return AlertDialog(
-            title: const Text(
-              'Pontos recebidos! 🎉',
-            ),
+            title: const Text('Pontos recebidos! 🎉'),
             content: Text(
               'Você ganhou $points pontos.\n\n'
               'Seu novo saldo é $balance pontos.',
@@ -61,12 +49,9 @@ class _QrScannerPageState
             actions: [
               TextButton(
                 onPressed: () {
-                  Navigator.of(
-                    context,
-                  ).pop();
+                  Navigator.of(context).pop();
                 },
-                child:
-                    const Text('OK'),
+                child: const Text('OK'),
               ),
             ],
           );
@@ -76,19 +61,13 @@ class _QrScannerPageState
       if (!mounted) return;
 
       context.pop(true);
-
     } catch (e) {
       if (!mounted) return;
 
       setState(() {
         _processing = false;
 
-        _error = e
-            .toString()
-            .replaceFirst(
-              'Exception: ',
-              '',
-            );
+        _error = e.toString().replaceFirst('Exception: ', '');
       });
     }
   }
@@ -96,28 +75,20 @@ class _QrScannerPageState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'Escanear QR Code',
-        ),
-      ),
+      appBar: AppBar(title: const Text('Escanear QR Code')),
       body: Stack(
         children: [
           MobileScanner(
-            onDetect:
-                (capture) {
+            onDetect: (capture) {
               if (_processing) {
                 return;
               }
 
-              if (capture
-                  .barcodes
-                  .isEmpty) {
+              if (capture.barcodes.isEmpty) {
                 return;
               }
 
-              final barcode =
-                  capture.barcodes.first;
+              final barcode = capture.barcodes.first;
 
               final value = barcode.rawValue;
 
@@ -135,17 +106,9 @@ class _QrScannerPageState
             child: Container(
               width: 280,
               height: 280,
-              decoration:
-                  BoxDecoration(
-                border:
-                    Border.all(
-                  color: Colors.white,
-                  width: 4,
-                ),
-                borderRadius:
-                    BorderRadius.circular(
-                  20,
-                ),
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.white, width: 4),
+                borderRadius: BorderRadius.circular(20),
               ),
             ),
           ),
@@ -158,56 +121,29 @@ class _QrScannerPageState
               children: [
                 if (_error != null)
                   Container(
-                    width:
-                        double.infinity,
-                    padding:
-                        const EdgeInsets.all(
-                      16,
-                    ),
-                    margin:
-                        const EdgeInsets.only(
-                      bottom: 16,
-                    ),
-                    decoration:
-                        BoxDecoration(
-                      color:
-                          Colors.black87,
-                      borderRadius:
-                          BorderRadius.circular(
-                        12,
-                      ),
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    margin: const EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(
+                      color: Colors.black87,
+                      borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
                       _error!,
-                      textAlign:
-                          TextAlign.center,
-                      style:
-                          const TextStyle(
-                        color: Colors.white,
-                      ),
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: Colors.white),
                     ),
                   ),
 
                 Container(
-                  padding:
-                      const EdgeInsets.all(
-                    14,
-                  ),
-                  decoration:
-                      BoxDecoration(
-                    color:
-                        Colors.black54,
-                    borderRadius:
-                        BorderRadius.circular(
-                      12,
-                    ),
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: Colors.black54,
+                    borderRadius: BorderRadius.circular(12),
                   ),
                   child: const Text(
                     'Aponte a câmera para o QR Code',
-                    style:
-                        TextStyle(
-                      color: Colors.white,
-                    ),
+                    style: TextStyle(color: Colors.white),
                   ),
                 ),
               ],
@@ -216,26 +152,18 @@ class _QrScannerPageState
 
           if (_processing)
             Container(
-              color:
-                  Colors.black54,
+              color: Colors.black54,
               child: const Center(
                 child: Column(
-                  mainAxisSize:
-                      MainAxisSize.min,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     CircularProgressIndicator(),
 
-                    SizedBox(
-                      height: 16,
-                    ),
+                    SizedBox(height: 16),
 
                     Text(
                       'Validando QR Code...',
-                      style:
-                          TextStyle(
-                        color:
-                            Colors.white,
-                      ),
+                      style: TextStyle(color: Colors.white),
                     ),
                   ],
                 ),

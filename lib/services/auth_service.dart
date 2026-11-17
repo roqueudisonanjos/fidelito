@@ -1,4 +1,3 @@
-
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AuthService {
@@ -8,10 +7,7 @@ class AuthService {
     required String email,
     required String password,
   }) {
-    return _supabase.auth.signInWithPassword(
-      email: email,
-      password: password,
-    );
+    return _supabase.auth.signInWithPassword(email: email, password: password);
   }
 
   Future<AuthResponse> register({
@@ -24,11 +20,7 @@ class AuthService {
     return _supabase.auth.signUp(
       email: email,
       password: password,
-      data: {
-        'full_name': name,
-        'phone': whatsapp,
-        'role': role,
-      },
+      data: {'full_name': name, 'phone': whatsapp, 'role': role},
     );
   }
 
@@ -49,6 +41,22 @@ class AuthService {
 
     if (user == null) {
       return null;
+    }
+
+    // O status de administrador é validado no servidor, por uma tabela
+    // inacessível ao cliente. Nunca confiamos em metadados editáveis pelo usuário.
+    try {
+      final adminResponse = await _supabase.functions.invoke(
+        'admin-console',
+        body: {'action': 'check_access'},
+      );
+      final adminData = adminResponse.data;
+      if (adminData is Map && adminData['is_admin'] == true) {
+        return 'admin';
+      }
+    } catch (_) {
+      // Mantém o login de clientes/empresas funcionando mesmo se a função
+      // administrativa ainda não estiver implantada.
     }
 
     final response = await _supabase

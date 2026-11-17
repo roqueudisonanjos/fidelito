@@ -4,19 +4,14 @@ import '../../models/loyalty_transaction.dart';
 import '../../services/customer_service.dart';
 
 class HistoryPage extends StatefulWidget {
-  const HistoryPage({
-    super.key,
-  });
+  const HistoryPage({super.key});
 
   @override
-  State<HistoryPage> createState() =>
-      _HistoryPageState();
+  State<HistoryPage> createState() => _HistoryPageState();
 }
 
-class _HistoryPageState
-    extends State<HistoryPage> {
-  final CustomerService _service =
-      CustomerService();
+class _HistoryPageState extends State<HistoryPage> {
+  final CustomerService _service = CustomerService();
 
   bool _loading = true;
 
@@ -38,8 +33,7 @@ class _HistoryPageState
     });
 
     try {
-      final transactions =
-          await _service.getTransactions();
+      final transactions = await _service.getTransactions();
 
       if (!mounted) return;
 
@@ -53,36 +47,22 @@ class _HistoryPageState
       setState(() {
         _loading = false;
 
-        _error = e
-            .toString()
-            .replaceFirst(
-              'Exception: ',
-              '',
-            );
+        _error = e.toString().replaceFirst('Exception: ', '');
       });
     }
   }
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'Histórico de pontos',
-        ),
-      ),
+      appBar: AppBar(title: const Text('Histórico de pontos')),
       body: _buildBody(),
     );
   }
 
   Widget _buildBody() {
     if (_loading) {
-      return const Center(
-        child:
-            CircularProgressIndicator(),
-      );
+      return const Center(child: CircularProgressIndicator());
     }
 
     if (_error != null) {
@@ -90,36 +70,19 @@ class _HistoryPageState
         onRefresh: _loadHistory,
         child: ListView(
           children: [
-            const SizedBox(
-              height: 180,
-            ),
+            const SizedBox(height: 180),
             Center(
               child: Padding(
-                padding:
-                    const EdgeInsets.all(24),
+                padding: const EdgeInsets.all(24),
                 child: Column(
                   children: [
-                    const Icon(
-                      Icons.error_outline,
-                      size: 50,
-                    ),
-                    const SizedBox(
-                      height: 16,
-                    ),
-                    Text(
-                      _error!,
-                      textAlign:
-                          TextAlign.center,
-                    ),
-                    const SizedBox(
-                      height: 16,
-                    ),
+                    const Icon(Icons.error_outline, size: 50),
+                    const SizedBox(height: 16),
+                    Text(_error!, textAlign: TextAlign.center),
+                    const SizedBox(height: 16),
                     ElevatedButton(
-                      onPressed:
-                          _loadHistory,
-                      child: const Text(
-                        'Tentar novamente',
-                      ),
+                      onPressed: _loadHistory,
+                      child: const Text('Tentar novamente'),
                     ),
                   ],
                 ),
@@ -135,15 +98,10 @@ class _HistoryPageState
       child: _transactions.isEmpty
           ? _buildEmpty()
           : ListView.builder(
-              padding:
-                  const EdgeInsets.all(16),
-              itemCount:
-                  _transactions.length,
-              itemBuilder:
-                  (context, index) {
-                return _buildTransaction(
-                  _transactions[index],
-                );
+              padding: const EdgeInsets.all(16),
+              itemCount: _transactions.length,
+              itemBuilder: (context, index) {
+                return _buildTransaction(_transactions[index]);
               },
             ),
     );
@@ -152,36 +110,20 @@ class _HistoryPageState
   Widget _buildEmpty() {
     return ListView(
       children: const [
-        SizedBox(
-          height: 180,
-        ),
+        SizedBox(height: 180),
         Center(
           child: Column(
             children: [
-              Icon(
-                Icons.history,
-                size: 64,
-                color: Colors.grey,
-              ),
-              SizedBox(
-                height: 16,
-              ),
+              Icon(Icons.history, size: 64, color: Colors.grey),
+              SizedBox(height: 16),
               Text(
                 'Nenhuma movimentação ainda.',
-                style: TextStyle(
-                  fontSize: 17,
-                  fontWeight:
-                      FontWeight.w500,
-                ),
+                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w500),
               ),
-              SizedBox(
-                height: 8,
-              ),
+              SizedBox(height: 8),
               Text(
                 'Seu histórico aparecerá aqui.',
-                style: TextStyle(
-                  color: Colors.grey,
-                ),
+                style: TextStyle(color: Colors.grey),
               ),
             ],
           ),
@@ -190,56 +132,32 @@ class _HistoryPageState
     );
   }
 
-  Widget _buildTransaction(
-    LoyaltyTransaction transaction,
-  ) {
-    final isPositive =
-        transaction.points > 0;
+  Widget _buildTransaction(LoyaltyTransaction transaction) {
+    final isPositive = transaction.points > 0;
 
-    final icon = isPositive
-        ? Icons.add_circle
-        : Icons.remove_circle;
+    final icon = isPositive ? Icons.add_circle : Icons.remove_circle;
 
-    final color = isPositive
-        ? Colors.green
-        : Colors.red;
+    final color = isPositive ? Colors.green : Colors.red;
 
-    final prefix =
-        isPositive ? '+' : '';
+    final prefix = isPositive ? '+' : '';
 
     return Card(
-      margin:
-          const EdgeInsets.only(
-        bottom: 10,
-      ),
+      margin: const EdgeInsets.only(bottom: 10),
       child: ListTile(
         leading: CircleAvatar(
-          backgroundColor:
-              color.withValues(alpha: .12),
-          child: Icon(
-            icon,
-            color: color,
-          ),
+          backgroundColor: color.withValues(alpha: .12),
+          child: Icon(icon, color: color),
         ),
         title: Text(
-          transaction.description ??
-              'Movimentação de pontos',
-          style: const TextStyle(
-            fontWeight:
-                FontWeight.w600,
-          ),
+          transaction.description ?? 'Movimentação de pontos',
+          style: const TextStyle(fontWeight: FontWeight.w600),
         ),
-        subtitle: Text(
-          _formatDate(
-            transaction.createdAt,
-          ),
-        ),
+        subtitle: Text(_formatDate(transaction.createdAt)),
         trailing: Text(
           '$prefix${transaction.points}',
           style: TextStyle(
             fontSize: 17,
-            fontWeight:
-                FontWeight.bold,
+            fontWeight: FontWeight.bold,
             color: color,
           ),
         ),
@@ -247,30 +165,18 @@ class _HistoryPageState
     );
   }
 
-  String _formatDate(
-    DateTime date,
-  ) {
-    final local =
-        date.toLocal();
+  String _formatDate(DateTime date) {
+    final local = date.toLocal();
 
-    final day = local.day
-        .toString()
-        .padLeft(2, '0');
+    final day = local.day.toString().padLeft(2, '0');
 
-    final month = local.month
-        .toString()
-        .padLeft(2, '0');
+    final month = local.month.toString().padLeft(2, '0');
 
-    final year =
-        local.year.toString();
+    final year = local.year.toString();
 
-    final hour = local.hour
-        .toString()
-        .padLeft(2, '0');
+    final hour = local.hour.toString().padLeft(2, '0');
 
-    final minute = local.minute
-        .toString()
-        .padLeft(2, '0');
+    final minute = local.minute.toString().padLeft(2, '0');
 
     return '$day/$month/$year às '
         '$hour:$minute';

@@ -11,20 +11,15 @@ class CompanyService {
     final user = _supabase.auth.currentUser;
 
     if (user == null) {
-      throw Exception(
-        'Usuário não autenticado.',
-      );
+      throw Exception('Usuário não autenticado.');
     }
 
     final company = await _supabase
         .from('companies')
         .select(
-          'id, owner_id, name, description, phone, address, city, state, logo_url, active',
+          'id, owner_id, name, description, phone, address, city, state, logo_url, active, suspended_at',
         )
-        .eq(
-          'owner_id',
-          user.id,
-        )
+        .eq('owner_id', user.id)
         .maybeSingle();
 
     return company;
@@ -41,46 +36,26 @@ class CompanyService {
     String? address,
     String? city,
     String? state,
+    String? logoUrl,
   }) async {
     final user = _supabase.auth.currentUser;
 
     if (user == null) {
-      throw Exception(
-        'Usuário não autenticado.',
-      );
+      throw Exception('Usuário não autenticado.');
     }
 
-    final company = await _supabase
-        .from('companies')
-        .select('id')
-        .eq(
-          'owner_id',
-          user.id,
-        )
-        .maybeSingle();
-
-    if (company == null) {
-      throw Exception(
-        'Empresa não encontrada.',
-      );
-    }
-
-    await _supabase
-        .from('companies')
-        .update({
-          'name': name,
-          'description': description,
-          'phone': phone,
-          'address': address,
-          'city': city,
-          'state': state?.trim().toUpperCase(),
-          'updated_at':
-              DateTime.now().toIso8601String(),
-        })
-        .eq(
-          'id',
-          company['id'],
-        );
+    await _supabase.rpc(
+      'update_my_company',
+      params: {
+        'p_name': name.trim(),
+        'p_description': description,
+        'p_phone': phone,
+        'p_address': address,
+        'p_city': city,
+        'p_state': state?.trim().toUpperCase(),
+        'p_logo_url': logoUrl,
+      },
+    );
   }
 
   Future<Map<String, dynamic>> createCompany({

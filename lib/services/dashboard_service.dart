@@ -11,9 +11,7 @@ class DashboardService {
     final user = _supabase.auth.currentUser;
 
     if (user == null) {
-      throw Exception(
-        'Usuário não autenticado.',
-      );
+      throw Exception('Usuário não autenticado.');
     }
 
     final company = await _supabase
@@ -23,25 +21,25 @@ class DashboardService {
         .maybeSingle();
 
     if (company == null) {
-      throw Exception(
-        'Empresa não encontrada.',
-      );
+      throw Exception('Empresa não encontrada.');
     }
 
     return company['id'].toString();
   }
-
 
   Future<int> awardPoints({
     required String customerId,
     required int points,
     String? description,
   }) async {
-    final result = await _supabase.rpc('award_customer_points', params: {
-      'p_customer_id': customerId,
-      'p_points': points,
-      'p_description': description,
-    });
+    final result = await _supabase.rpc(
+      'award_customer_points',
+      params: {
+        'p_customer_id': customerId,
+        'p_points': points,
+        'p_description': description,
+      },
+    );
     if (result is Map && result['new_balance'] != null) {
       return (result['new_balance'] as num).toInt();
     }
@@ -63,13 +61,9 @@ class DashboardService {
 
     final accounts = await _supabase
         .from('loyalty_accounts')
-        .select(
-          'id, customer_id, points',
-        )
-        .eq(
-          'company_id',
-          companyId,
-        );
+        .select('id, customer_id, points, left_at')
+        .eq('company_id', companyId)
+        .isFilter('left_at', null);
 
     if (accounts.isEmpty) {
       return [];
@@ -80,20 +74,16 @@ class DashboardService {
     final pointsByCustomer = <String, int>{};
 
     for (final account in accounts) {
-      final customerId =
-          account['customer_id']?.toString();
+      final customerId = account['customer_id']?.toString();
 
-      if (customerId == null ||
-          customerId.isEmpty) {
+      if (customerId == null || customerId.isEmpty) {
         continue;
       }
 
-      pointsByCustomer[customerId] =
-          _toInt(account['points']);
+      pointsByCustomer[customerId] = _toInt(account['points']);
     }
 
-    final customerIds =
-        pointsByCustomer.keys.toList();
+    final customerIds = pointsByCustomer.keys.toList();
 
     if (customerIds.isEmpty) {
       return [];
@@ -105,18 +95,10 @@ class DashboardService {
 
     final profilesResponse = await _supabase
         .from('profiles')
-        .select(
-          'id, full_name, whatsapp',
-        )
-        .inFilter(
-          'id',
-          customerIds,
-        );
+        .select('id, full_name, whatsapp, avatar_url')
+        .inFilter('id', customerIds);
 
-    final profiles =
-        List<Map<String, dynamic>>.from(
-      profilesResponse,
-    );
+    final profiles = List<Map<String, dynamic>>.from(profilesResponse);
 
     // ----------------------------------------------------------
     // 3. BUSCAR TRANSAÇÕES
@@ -125,155 +107,103 @@ class DashboardService {
     // o cliente já recebeu ao longo do tempo.
     // ----------------------------------------------------------
 
-    final transactionsResponse =
-        await _supabase
-            .from('loyalty_transactions')
-            .select(
-              'customer_id, promotion_id, points, type, created_at',
-            )
-            .eq(
-              'company_id',
-              companyId,
-            )
-            .order(
-              'created_at',
-              ascending: false,
-            );
+    final transactionsResponse = await _supabase
+        .from('loyalty_transactions')
+        .select('customer_id, promotion_id, points, type, created_at')
+        .eq('company_id', companyId)
+        .order('created_at', ascending: false);
 
-    final transactions =
-        List<Map<String, dynamic>>.from(
-      transactionsResponse,
-    );
+    final transactions = List<Map<String, dynamic>>.from(transactionsResponse);
 
     // ----------------------------------------------------------
     // ORGANIZAR TRANSAÇÕES POR CLIENTE
     // ----------------------------------------------------------
 
-    final transactionsByCustomer =
-        <String, List<Map<String, dynamic>>>{};
+    final transactionsByCustomer = <String, List<Map<String, dynamic>>>{};
 
     for (final transaction in transactions) {
-      final customerId =
-          transaction['customer_id']?.toString();
+      final customerId = transaction['customer_id']?.toString();
 
-      if (customerId == null ||
-          customerId.isEmpty) {
+      if (customerId == null || customerId.isEmpty) {
         continue;
       }
 
-      transactionsByCustomer
-          .putIfAbsent(
-            customerId,
-            () => [],
-          )
-          .add(transaction);
+      transactionsByCustomer.putIfAbsent(customerId, () => []).add(transaction);
     }
 
     // ----------------------------------------------------------
     // 4. BUSCAR PROMOÇÕES
     // ----------------------------------------------------------
 
-    final promotionsResponse =
-        await _supabase
-            .from('promotions')
-            .select(
-              'id, title, description, type, '
-              'points_required, discount_percentage, '
-              'gift_description, active, starts_at, ends_at',
-            )
-            .eq(
-              'company_id',
-              companyId,
-            );
+    final promotionsResponse = await _supabase
+        .from('promotions')
+        .select(
+          'id, title, description, type, '
+          'points_required, discount_percentage, '
+          'gift_description, active, starts_at, ends_at',
+        )
+        .eq('company_id', companyId);
 
-    final promotions =
-        List<Map<String, dynamic>>.from(
-      promotionsResponse,
-    );
+    final promotions = List<Map<String, dynamic>>.from(promotionsResponse);
 
     // Mapa:
     // promotion_id -> promoção
-    final promotionsMap =
-        <String, Map<String, dynamic>>{};
+    final promotionsMap = <String, Map<String, dynamic>>{};
 
     for (final promotion in promotions) {
-      final promotionId =
-          promotion['id']?.toString();
+      final promotionId = promotion['id']?.toString();
 
-      if (promotionId == null ||
-          promotionId.isEmpty) {
+      if (promotionId == null || promotionId.isEmpty) {
         continue;
       }
 
-      promotionsMap[promotionId] =
-          promotion;
+      promotionsMap[promotionId] = promotion;
     }
 
     // ----------------------------------------------------------
     // 5. BUSCAR RESGATES
     //
-    // Aqui conseguimos saber quais benefícios pertencem
+    // Aqui conseguimos saber quais recompensas pertencem
     // individualmente a cada cliente.
     // ----------------------------------------------------------
 
-    final redemptionsResponse =
-        await _supabase
-            .from('promotion_redemptions')
-            .select(
-              'id, customer_id, promotion_id, '
-              'status, points_spent, created_at',
-            )
-            .eq(
-              'company_id',
-              companyId,
-            )
-            .order(
-              'created_at',
-              ascending: false,
-            );
+    final redemptionsResponse = await _supabase
+        .from('promotion_redemptions')
+        .select(
+          'id, customer_id, promotion_id, '
+          'status, points_spent, created_at',
+        )
+        .eq('company_id', companyId)
+        .order('created_at', ascending: false);
 
-    final redemptions =
-        List<Map<String, dynamic>>.from(
-      redemptionsResponse,
-    );
+    final redemptions = List<Map<String, dynamic>>.from(redemptionsResponse);
 
     // ----------------------------------------------------------
     // ORGANIZAR RESGATES POR CLIENTE
     // ----------------------------------------------------------
 
-    final redemptionsByCustomer =
-        <String, List<Map<String, dynamic>>>{};
+    final redemptionsByCustomer = <String, List<Map<String, dynamic>>>{};
 
     for (final redemption in redemptions) {
-      final customerId =
-          redemption['customer_id']?.toString();
+      final customerId = redemption['customer_id']?.toString();
 
-      if (customerId == null ||
-          customerId.isEmpty) {
+      if (customerId == null || customerId.isEmpty) {
         continue;
       }
 
-      redemptionsByCustomer
-          .putIfAbsent(
-            customerId,
-            () => [],
-          )
-          .add(redemption);
+      redemptionsByCustomer.putIfAbsent(customerId, () => []).add(redemption);
     }
 
     // ----------------------------------------------------------
     // 6. MONTAR RESULTADO
     // ----------------------------------------------------------
 
-    final result =
-        <Map<String, dynamic>>[];
+    final result = <Map<String, dynamic>>[];
 
     for (final profile in profiles) {
-      final customerId =
-          profile['id']?.toString();
+      final customerId = profile['id']?.toString();
 
-      if (customerId == null ||
-          customerId.isEmpty) {
+      if (customerId == null || customerId.isEmpty) {
         continue;
       }
 
@@ -281,8 +211,7 @@ class DashboardService {
       // PONTOS ATUAIS
       // --------------------------------------------------------
 
-      final currentPoints =
-          pointsByCustomer[customerId] ?? 0;
+      final currentPoints = pointsByCustomer[customerId] ?? 0;
 
       // --------------------------------------------------------
       // PONTOS RECEBIDOS AO LONGO DO TEMPO
@@ -290,18 +219,11 @@ class DashboardService {
 
       int pointsEarned = 0;
 
-      final customerTransactions =
-          transactionsByCustomer[
-                  customerId] ??
-              [];
+      final customerTransactions = transactionsByCustomer[customerId] ?? [];
 
-      for (final transaction
-          in customerTransactions) {
+      for (final transaction in customerTransactions) {
         if (transaction['type'] == 'earn') {
-          pointsEarned +=
-              _toInt(
-            transaction['points'],
-          );
+          pointsEarned += _toInt(transaction['points']);
         }
       }
 
@@ -309,10 +231,7 @@ class DashboardService {
       // BENEFÍCIOS
       // --------------------------------------------------------
 
-      final customerRedemptions =
-          redemptionsByCustomer[
-                  customerId] ??
-              [];
+      final customerRedemptions = redemptionsByCustomer[customerId] ?? [];
 
       String? lastBenefitUsedAt;
 
@@ -332,76 +251,49 @@ class DashboardService {
           continue;
         }
 
-        final currentLastDate =
-            DateTime.tryParse(lastBenefitUsedAt);
+        final currentLastDate = DateTime.tryParse(lastBenefitUsedAt);
 
-        if (currentLastDate == null ||
-            date.isAfter(currentLastDate)) {
+        if (currentLastDate == null || date.isAfter(currentLastDate)) {
           lastBenefitUsedAt = createdAt;
         }
       }
 
-      final availableBenefits =
-          <Map<String, dynamic>>[];
+      final availableBenefits = <Map<String, dynamic>>[];
 
-      final usedBenefits =
-          <Map<String, dynamic>>[];
+      final usedBenefits = <Map<String, dynamic>>[];
 
-      final cancelledBenefits =
-          <Map<String, dynamic>>[];
+      final cancelledBenefits = <Map<String, dynamic>>[];
 
-      for (final redemption
-          in customerRedemptions) {
-        final promotionId =
-            redemption['promotion_id']
-                ?.toString();
+      for (final redemption in customerRedemptions) {
+        final promotionId = redemption['promotion_id']?.toString();
 
-        final promotion =
-            promotionId == null
-                ? null
-                : promotionsMap[
-                    promotionId];
+        final promotion = promotionId == null
+            ? null
+            : promotionsMap[promotionId];
 
-        final title =
-            promotion?['title'] ??
-            'Benefício';
+        final title = promotion?['title'] ?? 'Recompensa';
 
         final benefit = {
-          'id':
-              redemption['id'],
-          'promotion_id':
-              promotionId,
-          'title':
-              title,
-          'points_spent':
-              _toInt(
-            redemption['points_spent'],
-          ),
-          'created_at':
-              redemption['created_at'],
-          'expires_at':
-              promotion?['ends_at'],
+          'id': redemption['id'],
+          'promotion_id': promotionId,
+          'title': title,
+          'points_spent': _toInt(redemption['points_spent']),
+          'created_at': redemption['created_at'],
+          'expires_at': promotion?['ends_at'],
         };
 
-        final status =
-            redemption['status'];
+        final status = redemption['status'];
 
         if (status == 'available') {
-          availableBenefits.add(
-            benefit,
-          );
+          availableBenefits.add(benefit);
         }
 
         if (status == 'used') {
-          usedBenefits.add(
-            benefit,
-          );
+          usedBenefits.add(benefit);
         }
 
         if (status == 'cancelled') {
-          cancelledBenefits.add(
-            benefit,
-          );
+          cancelledBenefits.add(benefit);
         }
       }
 
@@ -412,34 +304,25 @@ class DashboardService {
       result.add({
         'id': customerId,
 
-        'full_name':
-            profile['full_name'],
+        'full_name': profile['full_name'],
 
-        'whatsapp':
-            profile['whatsapp'],
+        'whatsapp': profile['whatsapp'],
 
         // Saldo atual
-        'points':
-            currentPoints,
+        'points': currentPoints,
 
-        'points_current':
-            currentPoints,
+        'points_current': currentPoints,
 
         // Total recebido historicamente
-        'points_earned':
-            pointsEarned,
+        'points_earned': pointsEarned,
 
-        'available_benefits':
-            availableBenefits,
+        'available_benefits': availableBenefits,
 
-        'used_benefits':
-            usedBenefits,
+        'used_benefits': usedBenefits,
 
-        'cancelled_benefits':
-            cancelledBenefits,
+        'cancelled_benefits': cancelledBenefits,
 
-        'last_benefit_used_at':
-            lastBenefitUsedAt,
+        'last_benefit_used_at': lastBenefitUsedAt,
       });
     }
 
@@ -448,15 +331,9 @@ class DashboardService {
     // ----------------------------------------------------------
 
     result.sort(
-      (a, b) =>
-          (a['full_name'] ?? '')
-              .toString()
-              .toLowerCase()
-              .compareTo(
-                (b['full_name'] ?? '')
-                    .toString()
-                    .toLowerCase(),
-              ),
+      (a, b) => (a['full_name'] ?? '').toString().toLowerCase().compareTo(
+        (b['full_name'] ?? '').toString().toLowerCase(),
+      ),
     );
 
     return result;
@@ -467,8 +344,7 @@ class DashboardService {
   // ============================================================
 
   Future<Map<String, dynamic>> getDashboard() async {
-    final companyId =
-        await _getCompanyId();
+    final companyId = await _getCompanyId();
 
     // ----------------------------------------------------------
     // EMPRESA
@@ -476,13 +352,8 @@ class DashboardService {
 
     final company = await _supabase
         .from('companies')
-        .select(
-          'id, name, logo_url',
-        )
-        .eq(
-          'id',
-          companyId,
-        )
+        .select('id, name, logo_url')
+        .eq('id', companyId)
         .single();
 
     // ----------------------------------------------------------
@@ -491,22 +362,13 @@ class DashboardService {
 
     final accounts = await _supabase
         .from('loyalty_accounts')
-        .select(
-          'id, customer_id, points',
-        )
-        .eq(
-          'company_id',
-          companyId,
-        );
+        .select('id, customer_id, points, left_at')
+        .eq('company_id', companyId)
+        .isFilter('left_at', null);
 
     final customers = accounts
-        .map(
-          (item) =>
-              item['customer_id'],
-        )
-        .where(
-          (id) => id != null,
-        )
+        .map((item) => item['customer_id'])
+        .where((id) => id != null)
         .toSet()
         .length;
 
@@ -514,30 +376,18 @@ class DashboardService {
     // TRANSAÇÕES
     // ----------------------------------------------------------
 
-    final transactions =
-        await _supabase
-            .from('loyalty_transactions')
-            .select(
-              'id, type, points, promotion_id',
-            )
-            .eq(
-              'company_id',
-              companyId,
-            );
+    final transactions = await _supabase
+        .from('loyalty_transactions')
+        .select('id, type, points, promotion_id')
+        .eq('company_id', companyId);
 
     int pointsEarned = 0;
 
-    final transactionCount =
-        transactions.length;
+    final transactionCount = transactions.length;
 
-    for (final transaction
-        in transactions) {
-      if (transaction['type'] ==
-          'earn') {
-        pointsEarned +=
-            _toInt(
-          transaction['points'],
-        );
+    for (final transaction in transactions) {
+      if (transaction['type'] == 'earn') {
+        pointsEarned += _toInt(transaction['points']);
       }
     }
 
@@ -545,26 +395,20 @@ class DashboardService {
     // BENEFÍCIOS RESGATADOS
     // ----------------------------------------------------------
 
-    final redemptions =
-        await _supabase
-            .from('promotion_redemptions')
-            .select(
-              'id, promotion_id, '
-              'status, points_spent',
-            )
-            .eq(
-              'company_id',
-              companyId,
-            );
+    final redemptions = await _supabase
+        .from('promotion_redemptions')
+        .select(
+          'id, promotion_id, '
+          'status, points_spent',
+        )
+        .eq('company_id', companyId);
 
     int availableBenefits = 0;
     int usedBenefits = 0;
     int cancelledBenefits = 0;
 
-    for (final redemption
-        in redemptions) {
-      final status =
-          redemption['status'];
+    for (final redemption in redemptions) {
+      final status = redemption['status'];
 
       if (status == 'available') {
         availableBenefits++;
@@ -583,63 +427,40 @@ class DashboardService {
     // PROMOÇÕES
     // ----------------------------------------------------------
 
-    final promotions =
-        await _supabase
-            .from('promotions')
-            .select(
-              'id, title, active',
-            )
-            .eq(
-              'company_id',
-              companyId,
-            );
+    final promotions = await _supabase
+        .from('promotions')
+        .select('id, title, active')
+        .eq('company_id', companyId);
 
     // ----------------------------------------------------------
     // CONTAGEM DE RESGATES POR PROMOÇÃO
     // ----------------------------------------------------------
 
-    final Map<String, int>
-        redemptionCount = {};
+    final Map<String, int> redemptionCount = {};
 
-    for (final redemption
-        in redemptions) {
-      final promotionId =
-          redemption['promotion_id']
-              ?.toString();
+    for (final redemption in redemptions) {
+      final promotionId = redemption['promotion_id']?.toString();
 
       if (promotionId == null) {
         continue;
       }
 
-      redemptionCount[promotionId] =
-          (redemptionCount[
-                      promotionId] ??
-                  0) +
-              1;
+      redemptionCount[promotionId] = (redemptionCount[promotionId] ?? 0) + 1;
     }
 
-    final popularPromotions =
-        promotions.map((promotion) {
-      final id =
-          promotion['id'].toString();
+    final popularPromotions = promotions.map((promotion) {
+      final id = promotion['id'].toString();
 
       return {
         'id': id,
-        'title':
-            promotion['title'],
-        'active':
-            promotion['active'],
-        'redemptions':
-            redemptionCount[id] ?? 0,
+        'title': promotion['title'],
+        'active': promotion['active'],
+        'redemptions': redemptionCount[id] ?? 0,
       };
     }).toList();
 
     popularPromotions.sort(
-      (a, b) =>
-          (b['redemptions'] as int)
-              .compareTo(
-        a['redemptions'] as int,
-      ),
+      (a, b) => (b['redemptions'] as int).compareTo(a['redemptions'] as int),
     );
 
     // ----------------------------------------------------------
@@ -649,29 +470,21 @@ class DashboardService {
     return {
       'company': company,
 
-      'customers':
-          customers,
+      'customers': customers,
 
-      'points_earned':
-          pointsEarned,
+      'points_earned': pointsEarned,
 
-      'transactions':
-          transactionCount,
+      'transactions': transactionCount,
 
-      'redemptions':
-          redemptions.length,
+      'redemptions': redemptions.length,
 
-      'available_benefits':
-          availableBenefits,
+      'available_benefits': availableBenefits,
 
-      'used_benefits':
-          usedBenefits,
+      'used_benefits': usedBenefits,
 
-      'cancelled_benefits':
-          cancelledBenefits,
+      'cancelled_benefits': cancelledBenefits,
 
-      'popular_promotions':
-          popularPromotions,
+      'popular_promotions': popularPromotions,
     };
   }
 
@@ -696,9 +509,6 @@ class DashboardService {
       return value.toInt();
     }
 
-    return int.tryParse(
-          value.toString(),
-        ) ??
-        0;
+    return int.tryParse(value.toString()) ?? 0;
   }
 }

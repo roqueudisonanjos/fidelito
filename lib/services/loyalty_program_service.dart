@@ -16,7 +16,9 @@ class LoyaltyProgramService {
   }) async {
     var query = _supabase
         .from('companies')
-        .select('id, name, description, phone, address, city, state, logo_url, active')
+        .select(
+          'id, name, description, phone, address, city, state, logo_url, active',
+        )
         .eq('active', true);
 
     if (city != null && city.trim().isNotEmpty) {
@@ -33,7 +35,8 @@ class LoyaltyProgramService {
     final accounts = await _supabase
         .from('loyalty_accounts')
         .select('company_id')
-        .eq('customer_id', _userId);
+        .eq('customer_id', _userId)
+        .isFilter('left_at', null);
     final joinedIds = accounts.map((a) => a['company_id'].toString()).toSet();
 
     return companies.map((company) {
@@ -42,7 +45,6 @@ class LoyaltyProgramService {
       return item;
     }).toList();
   }
-
 
   Future<List<Map<String, dynamic>>> discoverPromotions({
     String? city,
@@ -53,8 +55,8 @@ class LoyaltyProgramService {
         .from('promotions')
         .select('''
           id, company_id, title, description, type, points_required,
-          discount_percentage, gift_description, starts_at, ends_at,
-          companies!inner(id, name, city, state, active)
+          discount_percentage, gift_description, image_url, starts_at, ends_at,
+          companies!inner(id, name, city, state, logo_url, active)
         ''')
         .eq('active', true)
         .eq('companies.active', true)
@@ -65,30 +67,45 @@ class LoyaltyProgramService {
     final stateFilter = state?.trim().toLowerCase() ?? '';
     final searchFilter = search?.trim().toLowerCase() ?? '';
 
-    return List<Map<String, dynamic>>.from(response).where((item) {
-      final company = Map<String, dynamic>.from(item['companies'] ?? {});
-      final companyCity = (company['city'] ?? '').toString().toLowerCase();
-      final companyState = (company['state'] ?? '').toString().toLowerCase();
-      final companyName = (company['name'] ?? '').toString().toLowerCase();
-      final title = (item['title'] ?? '').toString().toLowerCase();
-      final description = (item['description'] ?? '').toString().toLowerCase();
-      final starts = item['starts_at'] == null
-          ? null : DateTime.tryParse(item['starts_at'].toString())?.toUtc();
-      final ends = item['ends_at'] == null
-          ? null : DateTime.tryParse(item['ends_at'].toString())?.toUtc();
-      final inDate = (starts == null || !now.isBefore(starts)) &&
-          (ends == null || !now.isAfter(ends));
-      final matchesCity = cityFilter.isEmpty || companyCity.contains(cityFilter);
-      final matchesState = stateFilter.isEmpty || companyState == stateFilter;
-      final matchesSearch = searchFilter.isEmpty || companyName.contains(searchFilter) ||
-          title.contains(searchFilter) || description.contains(searchFilter);
-      return inDate && matchesCity && matchesState && matchesSearch;
-    }).map((item) {
-      final copy = Map<String, dynamic>.from(item);
-      copy['company'] = Map<String, dynamic>.from(item['companies'] ?? {});
-      copy.remove('companies');
-      return copy;
-    }).toList();
+    return List<Map<String, dynamic>>.from(response)
+        .where((item) {
+          final company = Map<String, dynamic>.from(item['companies'] ?? {});
+          final companyCity = (company['city'] ?? '').toString().toLowerCase();
+          final companyState = (company['state'] ?? '')
+              .toString()
+              .toLowerCase();
+          final companyName = (company['name'] ?? '').toString().toLowerCase();
+          final title = (item['title'] ?? '').toString().toLowerCase();
+          final description = (item['description'] ?? '')
+              .toString()
+              .toLowerCase();
+          final starts = item['starts_at'] == null
+              ? null
+              : DateTime.tryParse(item['starts_at'].toString())?.toUtc();
+          final ends = item['ends_at'] == null
+              ? null
+              : DateTime.tryParse(item['ends_at'].toString())?.toUtc();
+          final inDate =
+              (starts == null || !now.isBefore(starts)) &&
+              (ends == null || !now.isAfter(ends));
+          final matchesCity =
+              cityFilter.isEmpty || companyCity.contains(cityFilter);
+          final matchesState =
+              stateFilter.isEmpty || companyState == stateFilter;
+          final matchesSearch =
+              searchFilter.isEmpty ||
+              companyName.contains(searchFilter) ||
+              title.contains(searchFilter) ||
+              description.contains(searchFilter);
+          return inDate && matchesCity && matchesState && matchesSearch;
+        })
+        .map((item) {
+          final copy = Map<String, dynamic>.from(item);
+          copy['company'] = Map<String, dynamic>.from(item['companies'] ?? {});
+          copy.remove('companies');
+          return copy;
+        })
+        .toList();
   }
 
   Future<List<Map<String, dynamic>>> getMyPrograms() async {
@@ -99,21 +116,47 @@ class LoyaltyProgramService {
           company_id,
           points,
           created_at,
+          left_at,
           companies (
             id, name, description, phone, address, city, state, logo_url, active
           )
         ''')
         .eq('customer_id', _userId)
+        .isFilter('left_at', null)
         .order('created_at', ascending: false);
 
-    return List<Map<String, dynamic>>.from(response)
-        .where((row) => row['companies'] != null)
-        .toList();
+    return List<Map<String, dynamic>>.from(
+      response,
+    ).where((row) => row['companies'] != null).toList();
+  }
+
+  Future<Map<String, dynamic>> getCompanyDetails(String companyId) async {
+    final response = await _supabase
+        .from('companies')
+        .select(
+          'id, name, description, phone, address, city, state, logo_url, active',
+        )
+        .eq('id', companyId)
+        .eq('active', true)
+        .maybeSingle();
+
+    if (response == null) {
+      throw Exception('As informações desta empresa não estão disponíveis.');
+    }
+
+    return Map<String, dynamic>.from(response);
   }
 
   Future<void> joinProgram(String companyId) async {
     await _supabase.rpc(
       'join_loyalty_program',
+      params: {'p_company_id': companyId},
+    );
+  }
+
+  Future<void> leaveProgram(String companyId) async {
+    await _supabase.rpc(
+      'leave_loyalty_program',
       params: {'p_company_id': companyId},
     );
   }
@@ -136,7 +179,9 @@ class LoyaltyProgramService {
   ) async {
     final response = await _supabase
         .from('promotions')
-        .select('id, company_id, title, description, type, points_required, discount_percentage, gift_description, starts_at, ends_at, active')
+        .select(
+          'id, company_id, title, description, type, points_required, discount_percentage, gift_description, image_url, starts_at, ends_at, active',
+        )
         .eq('company_id', companyId)
         .eq('active', true)
         .order('points_required');

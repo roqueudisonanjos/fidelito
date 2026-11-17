@@ -11,18 +11,15 @@ class GenerateQrPage extends StatefulWidget {
   const GenerateQrPage({super.key});
 
   @override
-  State<GenerateQrPage> createState() =>
-      _GenerateQrPageState();
+  State<GenerateQrPage> createState() => _GenerateQrPageState();
 }
 
-class _GenerateQrPageState
-    extends State<GenerateQrPage> {
-
+class _GenerateQrPageState extends State<GenerateQrPage> {
   final QrService _qrService = QrService();
 
-  final TextEditingController
-      _pointsController =
-      TextEditingController(text: '10');
+  final TextEditingController _pointsController = TextEditingController(
+    text: '10',
+  );
 
   QrCodeModel? _qrCode;
 
@@ -33,14 +30,11 @@ class _GenerateQrPageState
   Timer? _expirationTimer;
 
   Future<void> _generateQr() async {
-    final points = int.tryParse(
-      _pointsController.text.trim(),
-    );
+    final points = int.tryParse(_pointsController.text.trim());
 
     if (points == null || points <= 0) {
       setState(() {
-        _error =
-            'Informe uma quantidade válida de pontos.';
+        _error = 'Informe uma quantidade válida de pontos.';
       });
 
       return;
@@ -66,27 +60,19 @@ class _GenerateQrPageState
 
       _expirationTimer?.cancel();
 
-      _expirationTimer = Timer(
-        const Duration(minutes: 10),
-        () {
-          if (!mounted) return;
+      _expirationTimer = Timer(const Duration(minutes: 10), () {
+        if (!mounted) return;
 
-          setState(() {
-            _qrCode = null;
-          });
-        },
-      );
+        setState(() {
+          _qrCode = null;
+        });
+      });
     } catch (e) {
       if (!mounted) return;
 
       setState(() {
         _loading = false;
-        _error = e
-            .toString()
-            .replaceFirst(
-              'Exception: ',
-              '',
-            );
+        _error = e.toString().replaceFirst('Exception: ', '');
       });
     }
   }
@@ -111,9 +97,7 @@ class _GenerateQrPageState
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'Gerar QR Code',
-        ),
+        title: const Text('Gerar QR Code'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
@@ -123,16 +107,10 @@ class _GenerateQrPageState
       ),
       body: Center(
         child: ConstrainedBox(
-          constraints:
-              const BoxConstraints(
-            maxWidth: 500,
-          ),
+          constraints: const BoxConstraints(maxWidth: 500),
           child: Padding(
-            padding:
-                const EdgeInsets.all(24),
-            child: _qrCode == null
-                ? _buildForm()
-                : _buildQr(),
+            padding: const EdgeInsets.all(24),
+            child: _qrCode == null ? _buildForm() : _buildQr(),
           ),
         ),
       ),
@@ -141,48 +119,33 @@ class _GenerateQrPageState
 
   Widget _buildForm() {
     return Column(
-      mainAxisAlignment:
-          MainAxisAlignment.center,
+      mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        const Icon(
-          Icons.qr_code_2,
-          size: 80,
-        ),
+        const Icon(Icons.qr_code_2, size: 80),
 
         const SizedBox(height: 24),
 
         const Text(
           'Gerar QR Code',
-          style: TextStyle(
-            fontSize: 26,
-            fontWeight:
-                FontWeight.bold,
-          ),
+          style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
         ),
 
         const SizedBox(height: 8),
 
         const Text(
           'Informe quantos pontos o cliente receberá.',
-          textAlign:
-              TextAlign.center,
+          textAlign: TextAlign.center,
         ),
 
         const SizedBox(height: 24),
 
         TextField(
-          controller:
-              _pointsController,
-          keyboardType:
-              TextInputType.number,
-          decoration:
-              const InputDecoration(
-            labelText:
-                'Quantidade de pontos',
-            prefixIcon:
-                Icon(Icons.stars),
-            border:
-                OutlineInputBorder(),
+          controller: _pointsController,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(
+            labelText: 'Quantidade de pontos',
+            prefixIcon: Icon(Icons.stars),
+            border: OutlineInputBorder(),
           ),
         ),
 
@@ -190,18 +153,11 @@ class _GenerateQrPageState
 
         if (_error != null)
           Padding(
-            padding:
-                const EdgeInsets.only(
-              bottom: 16,
-            ),
+            padding: const EdgeInsets.only(bottom: 16),
             child: Text(
               _error!,
-              textAlign:
-                  TextAlign.center,
-              style:
-                  const TextStyle(
-                color: Colors.red,
-              ),
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.red),
             ),
           ),
 
@@ -209,22 +165,14 @@ class _GenerateQrPageState
           width: double.infinity,
           height: 52,
           child: ElevatedButton(
-            onPressed:
-                _loading
-                    ? null
-                    : _generateQr,
+            onPressed: _loading ? null : _generateQr,
             child: _loading
                 ? const SizedBox(
                     width: 22,
                     height: 22,
-                    child:
-                        CircularProgressIndicator(
-                      strokeWidth: 2,
-                    ),
+                    child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : const Text(
-                    'Gerar QR Code',
-                  ),
+                : const Text('Gerar QR Code'),
           ),
         ),
       ],
@@ -233,16 +181,11 @@ class _GenerateQrPageState
 
   Widget _buildQr() {
     return Column(
-      mainAxisAlignment:
-          MainAxisAlignment.center,
+      mainAxisAlignment: MainAxisAlignment.center,
       children: [
         const Text(
           'QR Code gerado',
-          style: TextStyle(
-            fontSize: 26,
-            fontWeight:
-                FontWeight.bold,
-          ),
+          style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
         ),
 
         const SizedBox(height: 8),
@@ -251,56 +194,38 @@ class _GenerateQrPageState
           '${_qrCode!.points} pontos',
           style: TextStyle(
             fontSize: 22,
-            fontWeight:
-                FontWeight.bold,
-            color:
-                Theme.of(context)
-                    .colorScheme
-                    .primary,
+            fontWeight: FontWeight.bold,
+            color: Theme.of(context).colorScheme.primary,
           ),
         ),
 
         const SizedBox(height: 24),
 
         Container(
-          padding:
-              const EdgeInsets.all(20),
-          decoration:
-              BoxDecoration(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius:
-                BorderRadius.circular(
-              16,
-            ),
+            borderRadius: BorderRadius.circular(16),
           ),
-          child: QrImageView(
-            data: _qrCode!.code,
-            size: 280,
-          ),
+          child: QrImageView(data: _qrCode!.code, size: 280),
         ),
 
         const SizedBox(height: 20),
 
         const Text(
           'Peça para o cliente escanear este código.',
-          textAlign:
-              TextAlign.center,
+          textAlign: TextAlign.center,
         ),
 
         const Text(
           'Este código é válido por 10 minutos e pode ser usado apenas uma vez.',
-          textAlign:
-              TextAlign.center,
-          style: TextStyle(
-            color: Colors.grey,
-          ),
+          textAlign: TextAlign.center,
+          style: TextStyle(color: Colors.grey),
         ),
 
         OutlinedButton(
           onPressed: _newQr,
-          child: const Text(
-            'Gerar outro QR Code',
-          ),
+          child: const Text('Gerar outro QR Code'),
         ),
       ],
     );

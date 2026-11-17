@@ -15,21 +15,14 @@ class LoyaltyTransaction {
     required this.createdAt,
   });
 
-  factory LoyaltyTransaction.fromMap(
-    Map<String, dynamic> map,
-  ) {
+  factory LoyaltyTransaction.fromMap(Map<String, dynamic> map) {
     return LoyaltyTransaction(
       id: map['id'] as String,
-      companyId:
-          map['company_id'] as String,
+      companyId: map['company_id'] as String,
       type: map['type'] as String,
       points: map['points'] as int,
-      description:
-          map['description'] as String?,
-      createdAt:
-          DateTime.parse(
-        map['created_at'] as String,
-      ),
+      description: map['description'] as String?,
+      createdAt: DateTime.parse(map['created_at'] as String),
     );
   }
 }

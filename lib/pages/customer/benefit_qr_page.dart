@@ -2,41 +2,26 @@ import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
 class BenefitQrPage extends StatelessWidget {
-  const BenefitQrPage({
-    super.key,
-    required this.benefit,
-  });
+  const BenefitQrPage({super.key, required this.benefit});
 
   final Map<String, dynamic> benefit;
 
   @override
   Widget build(BuildContext context) {
-    final promotion =
-        benefit['promotions']
-            as Map<String, dynamic>?;
+    final promotion = benefit['promotions'] as Map<String, dynamic>?;
 
-    final company =
-        benefit['companies']
-            as Map<String, dynamic>?;
+    final company = benefit['companies'] as Map<String, dynamic>?;
 
-    final id =
-        benefit['id']?.toString() ?? '';
+    final id = benefit['id']?.toString() ?? '';
 
-    final title =
-        promotion?['title'] ?? 'Benefício';
+    final title = promotion?['title'] ?? 'Recompensa';
 
-    final companyName =
-        company?['name'] ?? 'Empresa';
+    final companyName = company?['name'] ?? 'Empresa';
 
-    final points =
-        benefit['points_spent'] ?? 0;
+    final points = benefit['points_spent'] ?? 0;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'Apresentar benefício',
-        ),
-      ),
+      appBar: AppBar(title: const Text('Apresentar recompensa')),
 
       body: Center(
         child: SingleChildScrollView(
@@ -44,11 +29,7 @@ class BenefitQrPage extends StatelessWidget {
 
           child: Column(
             children: [
-
-              const Icon(
-                Icons.card_giftcard,
-                size: 60,
-              ),
+              const Icon(Icons.card_giftcard, size: 60),
 
               const SizedBox(height: 20),
 
@@ -65,19 +46,14 @@ class BenefitQrPage extends StatelessWidget {
 
               Text(
                 companyName,
-                style: const TextStyle(
-                  fontSize: 17,
-                  color: Colors.grey,
-                ),
+                style: const TextStyle(fontSize: 17, color: Colors.grey),
               ),
 
               const SizedBox(height: 8),
 
               Text(
                 '$points pontos utilizados',
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                ),
+                style: const TextStyle(fontWeight: FontWeight.bold),
               ),
 
               const SizedBox(height: 32),
@@ -100,19 +76,15 @@ class BenefitQrPage extends StatelessWidget {
               const Text(
                 'Apresente este QR Code no estabelecimento.',
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 16,
-                ),
+                style: TextStyle(fontSize: 16),
               ),
 
               const SizedBox(height: 8),
 
               const Text(
-                'A empresa irá escanear o código para validar seu benefício.',
+                'A empresa irá escanear o código para validar sua recompensa.',
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: Colors.grey,
-                ),
+                style: TextStyle(color: Colors.grey),
               ),
             ],
           ),

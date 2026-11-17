@@ -11,16 +11,12 @@ class QrCodeModel {
     required this.expiresAt,
   });
 
-  factory QrCodeModel.fromMap(
-    Map<String, dynamic> map,
-  ) {
+  factory QrCodeModel.fromMap(Map<String, dynamic> map) {
     return QrCodeModel(
       id: map['id'] as String,
       code: map['code'] as String,
       points: map['points'] as int,
-      expiresAt: DateTime.parse(
-        map['expires_at'] as String,
-      ),
+      expiresAt: DateTime.parse(map['expires_at'] as String),
     );
   }
 }

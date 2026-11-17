@@ -1,8 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class PromotionService {
-  final SupabaseClient _supabase =
-      Supabase.instance.client;
+  final SupabaseClient _supabase = Supabase.instance.client;
 
   // ============================================================
   // PROMOÇÕES DISPONÍVEIS PARA O CLIENTE
@@ -57,9 +56,7 @@ class PromotionService {
 
       return List<Map<String, dynamic>>.from(response);
     } catch (e) {
-      throw Exception(
-        'Não foi possível carregar as promoções da empresa.',
-      );
+      throw Exception('Não foi possível carregar as promoções da empresa.');
     }
   }
 
@@ -67,9 +64,7 @@ class PromotionService {
   // BUSCAR UMA PROMOÇÃO
   // ============================================================
 
-  Future<Map<String, dynamic>?> getPromotion(
-    String promotionId,
-  ) async {
+  Future<Map<String, dynamic>?> getPromotion(String promotionId) async {
     try {
       final response = await _supabase
           .from('promotions')
@@ -83,9 +78,7 @@ class PromotionService {
 
       return Map<String, dynamic>.from(response);
     } catch (e) {
-      throw Exception(
-        'Não foi possível carregar o benefício.',
-      );
+      throw Exception('Não foi possível carregar a recompensa.');
     }
   }
 
@@ -103,31 +96,25 @@ class PromotionService {
     String? giftDescription,
     required DateTime startsAt,
     required DateTime endsAt,
+    String? imageUrl,
   }) async {
     // ----------------------------------------------------------
     // Validações
     // ----------------------------------------------------------
 
     if (title.trim().isEmpty) {
-      throw Exception(
-        'Informe o título do benefício.',
-      );
+      throw Exception('Informe o título da recompensa.');
     }
 
     if (type != 'discount' && type != 'gift') {
-      throw Exception(
-        'Tipo de benefício inválido.',
-      );
+      throw Exception('Tipo de recompensa inválido.');
     }
 
     if (pointsRequired <= 0) {
-      throw Exception(
-        'A quantidade de pontos deve ser maior que zero.',
-      );
+      throw Exception('A quantidade de pontos deve ser maior que zero.');
     }
 
-    if (endsAt.isBefore(startsAt) ||
-        endsAt.isAtSameMomentAs(startsAt)) {
+    if (endsAt.isBefore(startsAt) || endsAt.isAtSameMomentAs(startsAt)) {
       throw Exception(
         'A data de validade deve ser posterior à data de início.',
       );
@@ -144,11 +131,8 @@ class PromotionService {
     }
 
     if (type == 'gift') {
-      if (giftDescription == null ||
-          giftDescription.trim().isEmpty) {
-        throw Exception(
-          'Informe a descrição do brinde.',
-        );
+      if (giftDescription == null || giftDescription.trim().isEmpty) {
+        throw Exception('Informe a descrição do brinde.');
       }
     }
 
@@ -162,19 +146,14 @@ class PromotionService {
       'description': _nullableText(description),
       'type': type,
       'points_required': pointsRequired,
-      'discount_percentage':
-          type == 'discount'
-              ? discountPercentage
-              : null,
-      'gift_description':
-          type == 'gift'
-              ? _nullableText(giftDescription)
-              : null,
+      'discount_percentage': type == 'discount' ? discountPercentage : null,
+      'gift_description': type == 'gift'
+          ? _nullableText(giftDescription)
+          : null,
       'active': true,
-      'starts_at':
-          startsAt.toUtc().toIso8601String(),
-      'ends_at':
-          endsAt.toUtc().toIso8601String(),
+      'starts_at': startsAt.toUtc().toIso8601String(),
+      'ends_at': endsAt.toUtc().toIso8601String(),
+      'image_url': imageUrl,
     };
 
     try {
@@ -186,9 +165,7 @@ class PromotionService {
 
       return Map<String, dynamic>.from(response);
     } catch (e) {
-      throw Exception(
-        'Não foi possível criar o benefício.',
-      );
+      throw Exception('Não foi possível criar a recompensa.');
     }
   }
 
@@ -207,31 +184,25 @@ class PromotionService {
     String? giftDescription,
     required DateTime startsAt,
     required DateTime endsAt,
+    String? imageUrl,
   }) async {
     // ----------------------------------------------------------
     // Validações
     // ----------------------------------------------------------
 
     if (title.trim().isEmpty) {
-      throw Exception(
-        'Informe o título do benefício.',
-      );
+      throw Exception('Informe o título da recompensa.');
     }
 
     if (type != 'discount' && type != 'gift') {
-      throw Exception(
-        'Tipo de benefício inválido.',
-      );
+      throw Exception('Tipo de recompensa inválido.');
     }
 
     if (pointsRequired <= 0) {
-      throw Exception(
-        'A quantidade de pontos deve ser maior que zero.',
-      );
+      throw Exception('A quantidade de pontos deve ser maior que zero.');
     }
 
-    if (endsAt.isBefore(startsAt) ||
-        endsAt.isAtSameMomentAs(startsAt)) {
+    if (endsAt.isBefore(startsAt) || endsAt.isAtSameMomentAs(startsAt)) {
       throw Exception(
         'A data de validade deve ser posterior à data de início.',
       );
@@ -248,11 +219,8 @@ class PromotionService {
     }
 
     if (type == 'gift') {
-      if (giftDescription == null ||
-          giftDescription.trim().isEmpty) {
-        throw Exception(
-          'Informe a descrição do brinde.',
-        );
+      if (giftDescription == null || giftDescription.trim().isEmpty) {
+        throw Exception('Informe a descrição do brinde.');
       }
     }
 
@@ -268,20 +236,14 @@ class PromotionService {
       'description': _nullableText(description),
       'type': type,
       'points_required': pointsRequired,
-      'discount_percentage':
-          type == 'discount'
-              ? discountPercentage
-              : null,
-      'gift_description':
-          type == 'gift'
-              ? _nullableText(giftDescription)
-              : null,
-      'starts_at':
-          startsAt.toUtc().toIso8601String(),
-      'ends_at':
-          endsAt.toUtc().toIso8601String(),
-      'updated_at':
-          DateTime.now().toUtc().toIso8601String(),
+      'discount_percentage': type == 'discount' ? discountPercentage : null,
+      'gift_description': type == 'gift'
+          ? _nullableText(giftDescription)
+          : null,
+      'starts_at': startsAt.toUtc().toIso8601String(),
+      'ends_at': endsAt.toUtc().toIso8601String(),
+      'image_url': imageUrl,
+      'updated_at': DateTime.now().toUtc().toIso8601String(),
     };
 
     try {
@@ -295,9 +257,7 @@ class PromotionService {
 
       return Map<String, dynamic>.from(response);
     } catch (e) {
-      throw Exception(
-        'Não foi possível atualizar o benefício.',
-      );
+      throw Exception('Não foi possível atualizar a recompensa.');
     }
   }
 
@@ -315,52 +275,38 @@ class PromotionService {
   // - podemos diferenciar "cancelado" de "apagado".
   // ============================================================
 
-Future<void> cancelPromotion(
-  String promotionId,
-) async {
-  try {
-    final user = _supabase.auth.currentUser;
+  Future<void> cancelPromotion(String promotionId) async {
+    try {
+      final user = _supabase.auth.currentUser;
 
-    if (user == null) {
-      throw Exception(
-        'Usuário não autenticado.',
-      );
+      if (user == null) {
+        throw Exception('Usuário não autenticado.');
+      }
+
+      final company = await _supabase
+          .from('companies')
+          .select('id')
+          .eq('owner_id', user.id)
+          .maybeSingle();
+
+      if (company == null) {
+        throw Exception('Empresa não encontrada.');
+      }
+
+      final companyId = company['id'];
+
+      await _supabase
+          .from('promotions')
+          .update({
+            'active': false,
+            'updated_at': DateTime.now().toUtc().toIso8601String(),
+          })
+          .eq('id', promotionId)
+          .eq('company_id', companyId);
+    } catch (e) {
+      throw Exception(e.toString().replaceFirst('Exception: ', ''));
     }
-
-    final company = await _supabase
-        .from('companies')
-        .select('id')
-        .eq('owner_id', user.id)
-        .maybeSingle();
-
-    if (company == null) {
-      throw Exception(
-        'Empresa não encontrada.',
-      );
-    }
-
-    final companyId = company['id'];
-
-    await _supabase
-        .from('promotions')
-        .update({
-          'active': false,
-          'updated_at':
-              DateTime.now()
-                  .toUtc()
-                  .toIso8601String(),
-        })
-        .eq('id', promotionId)
-        .eq('company_id', companyId);
-  } catch (e) {
-    throw Exception(
-      e.toString().replaceFirst(
-        'Exception: ',
-        '',
-      ),
-    );
   }
-}
   // ============================================================
   // REATIVAR PROMOÇÃO
   //
@@ -382,36 +328,24 @@ Future<void> cancelPromotion(
           .maybeSingle();
 
       if (promotion == null) {
-        throw Exception(
-          'Benefício não encontrado.',
-        );
+        throw Exception('Recompensa não encontrado.');
       }
 
-      final endsAt =
-          DateTime.tryParse(
-        promotion['ends_at'].toString(),
-      );
+      final endsAt = DateTime.tryParse(promotion['ends_at'].toString());
 
       if (endsAt == null) {
-        throw Exception(
-          'A data de validade do benefício é inválida.',
-        );
+        throw Exception('A data de validade da recompensa é inválida.');
       }
 
       if (!endsAt.isAfter(DateTime.now())) {
-        throw Exception(
-          'Este benefício já expirou e não pode ser reativado.',
-        );
+        throw Exception('Esta recompensa já expirou e não pode ser reativada.');
       }
 
       await _supabase
           .from('promotions')
           .update({
             'active': true,
-            'updated_at':
-                DateTime.now()
-                    .toUtc()
-                    .toIso8601String(),
+            'updated_at': DateTime.now().toUtc().toIso8601String(),
           })
           .eq('id', promotionId)
           .eq('company_id', companyId);
@@ -420,9 +354,7 @@ Future<void> cancelPromotion(
         rethrow;
       }
 
-      throw Exception(
-        'Não foi possível reativar o benefício.',
-      );
+      throw Exception('Não foi possível reativar a recompensa.');
     }
   }
 
@@ -436,46 +368,35 @@ Future<void> cancelPromotion(
   // seguro porque mantém o histórico.
   // ============================================================
 
-Future<void> deletePromotion(
-  String promotionId,
-) async {
-  try {
-    final user = _supabase.auth.currentUser;
+  Future<void> deletePromotion(String promotionId) async {
+    try {
+      final user = _supabase.auth.currentUser;
 
-    if (user == null) {
-      throw Exception(
-        'Usuário não autenticado.',
-      );
+      if (user == null) {
+        throw Exception('Usuário não autenticado.');
+      }
+
+      final company = await _supabase
+          .from('companies')
+          .select('id')
+          .eq('owner_id', user.id)
+          .maybeSingle();
+
+      if (company == null) {
+        throw Exception('Empresa não encontrada.');
+      }
+
+      final companyId = company['id'];
+
+      await _supabase
+          .from('promotions')
+          .delete()
+          .eq('id', promotionId)
+          .eq('company_id', companyId);
+    } catch (e) {
+      throw Exception(e.toString().replaceFirst('Exception: ', ''));
     }
-
-    final company = await _supabase
-        .from('companies')
-        .select('id')
-        .eq('owner_id', user.id)
-        .maybeSingle();
-
-    if (company == null) {
-      throw Exception(
-        'Empresa não encontrada.',
-      );
-    }
-
-    final companyId = company['id'];
-
-    await _supabase
-        .from('promotions')
-        .delete()
-        .eq('id', promotionId)
-        .eq('company_id', companyId);
-  } catch (e) {
-    throw Exception(
-      e.toString().replaceFirst(
-        'Exception: ',
-        '',
-      ),
-    );
   }
-}
   // ============================================================
   // RESGATAR PROMOÇÃO
   //
@@ -496,23 +417,15 @@ Future<void> deletePromotion(
   // - retornar o novo saldo.
   // ============================================================
 
-  Future<Map<String, dynamic>> redeemPromotion(
-    String promotionId,
-  ) async {
+  Future<Map<String, dynamic>> redeemPromotion(String promotionId) async {
     try {
-      final response =
-          await _supabase.rpc(
+      final response = await _supabase.rpc(
         'redeem_promotion',
-        params: {
-          'p_promotion_id':
-              promotionId,
-        },
+        params: {'p_promotion_id': promotionId},
       );
 
       if (response == null) {
-        throw Exception(
-          'Não foi possível realizar o resgate.',
-        );
+        throw Exception('Não foi possível realizar o resgate.');
       }
 
       if (response is Map<String, dynamic>) {
@@ -521,20 +434,13 @@ Future<void> deletePromotion(
 
       if (response is List &&
           response.isNotEmpty &&
-          response.first
-              is Map<String, dynamic>) {
-        return Map<String, dynamic>.from(
-          response.first,
-        );
+          response.first is Map<String, dynamic>) {
+        return Map<String, dynamic>.from(response.first);
       }
 
-      throw Exception(
-        'Resposta inválida ao realizar o resgate.',
-      );
+      throw Exception('Resposta inválida ao realizar o resgate.');
     } catch (e) {
-      throw Exception(
-        _cleanErrorMessage(e),
-      );
+      throw Exception(_cleanErrorMessage(e));
     }
   }
 
@@ -548,16 +454,12 @@ Future<void> deletePromotion(
   // mantenha o BenefitService atual para essa parte.
   // ============================================================
 
-  Future<List<Map<String, dynamic>>>
-      getMyRedemptions() async {
+  Future<List<Map<String, dynamic>>> getMyRedemptions() async {
     try {
-      final user =
-          _supabase.auth.currentUser;
+      final user = _supabase.auth.currentUser;
 
       if (user == null) {
-        throw Exception(
-          'Usuário não autenticado.',
-        );
+        throw Exception('Usuário não autenticado.');
       }
 
       final response = await _supabase
@@ -584,18 +486,11 @@ Future<void> deletePromotion(
             )
           ''')
           .eq('customer_id', user.id)
-          .order(
-            'redeemed_at',
-            ascending: false,
-          );
+          .order('redeemed_at', ascending: false);
 
-      return List<Map<String, dynamic>>.from(
-        response,
-      );
+      return List<Map<String, dynamic>>.from(response);
     } catch (e) {
-      throw Exception(
-        'Não foi possível carregar seus benefícios.',
-      );
+      throw Exception('Não foi possível carregar suas recompensas.');
     }
   }
 
@@ -603,9 +498,7 @@ Future<void> deletePromotion(
   // MÉTODOS AUXILIARES
   // ============================================================
 
-  String? _nullableText(
-    String? value,
-  ) {
+  String? _nullableText(String? value) {
     if (value == null) {
       return null;
     }
@@ -619,30 +512,25 @@ Future<void> deletePromotion(
     return text;
   }
 
-  String _cleanErrorMessage(
-    dynamic error,
-  ) {
+  String _cleanErrorMessage(dynamic error) {
     String message = error.toString();
 
-    message = message.replaceFirst(
-      'Exception: ',
-      '',
-    );
+    message = message.replaceFirst('Exception: ', '');
 
     if (message.contains('Pontos insuficientes')) {
       return 'Você não possui pontos suficientes.';
     }
 
     if (message.contains('promotion_not_found')) {
-      return 'Este benefício não está mais disponível.';
+      return 'Esta recompensa não está mais disponível.';
     }
 
     if (message.contains('promotion_expired')) {
-      return 'Este benefício já expirou.';
+      return 'Esta recompensa já expirou.';
     }
 
     if (message.contains('promotion_inactive')) {
-      return 'Este benefício foi cancelado.';
+      return 'Esta recompensa foi cancelada.';
     }
 
     if (message.contains('not enough points')) {

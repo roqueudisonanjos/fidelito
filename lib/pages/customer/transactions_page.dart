@@ -4,20 +4,14 @@ import '../../models/loyalty_transaction.dart';
 import '../../services/customer_service.dart';
 
 class TransactionsPage extends StatefulWidget {
-  const TransactionsPage({
-    super.key,
-  });
+  const TransactionsPage({super.key});
 
   @override
-  State<TransactionsPage> createState() =>
-      _TransactionsPageState();
+  State<TransactionsPage> createState() => _TransactionsPageState();
 }
 
-class _TransactionsPageState
-    extends State<TransactionsPage> {
-
-  final CustomerService _service =
-      CustomerService();
+class _TransactionsPageState extends State<TransactionsPage> {
+  final CustomerService _service = CustomerService();
 
   bool _loading = true;
 
@@ -39,8 +33,7 @@ class _TransactionsPageState
     });
 
     try {
-      final transactions =
-          await _service.getAllTransactions();
+      final transactions = await _service.getAllTransactions();
 
       if (!mounted) return;
 
@@ -48,20 +41,13 @@ class _TransactionsPageState
         _transactions = transactions;
         _loading = false;
       });
-
     } catch (e) {
-
       if (!mounted) return;
 
       setState(() {
         _loading = false;
 
-        _error = e
-            .toString()
-            .replaceFirst(
-              'Exception: ',
-              '',
-            );
+        _error = e.toString().replaceFirst('Exception: ', '');
       });
     }
   }
@@ -69,11 +55,7 @@ class _TransactionsPageState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'Histórico de pontos',
-        ),
-      ),
+      appBar: AppBar(title: const Text('Histórico de pontos')),
 
       body: _buildBody(),
     );
@@ -81,9 +63,7 @@ class _TransactionsPageState
 
   Widget _buildBody() {
     if (_loading) {
-      return const Center(
-        child: CircularProgressIndicator(),
-      );
+      return const Center(child: CircularProgressIndicator());
     }
 
     if (_error != null) {
@@ -96,18 +76,12 @@ class _TransactionsPageState
       child: _transactions.isEmpty
           ? _buildEmpty()
           : ListView.builder(
-              padding:
-                  const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(16),
 
-              itemCount:
-                  _transactions.length,
+              itemCount: _transactions.length,
 
-              itemBuilder:
-                  (context, index) {
-
-                return _buildTransaction(
-                  _transactions[index],
-                );
+              itemBuilder: (context, index) {
+                return _buildTransaction(_transactions[index]);
               },
             ),
     );
@@ -116,32 +90,18 @@ class _TransactionsPageState
   Widget _buildEmpty() {
     return ListView(
       children: const [
-
-        SizedBox(
-          height: 180,
-        ),
+        SizedBox(height: 180),
 
         Center(
           child: Column(
             children: [
+              Icon(Icons.history, size: 64, color: Colors.grey),
 
-              Icon(
-                Icons.history,
-                size: 64,
-                color: Colors.grey,
-              ),
-
-              SizedBox(
-                height: 16,
-              ),
+              SizedBox(height: 16),
 
               Text(
                 'Nenhuma movimentação encontrada.',
-                style: TextStyle(
-                  fontSize: 17,
-                  fontWeight:
-                      FontWeight.w500,
-                ),
+                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w500),
               ),
             ],
           ),
@@ -153,45 +113,26 @@ class _TransactionsPageState
   Widget _buildError() {
     return ListView(
       children: [
-
-        const SizedBox(
-          height: 180,
-        ),
+        const SizedBox(height: 180),
 
         Center(
           child: Padding(
-            padding:
-                const EdgeInsets.all(24),
+            padding: const EdgeInsets.all(24),
 
             child: Column(
               children: [
+                const Icon(Icons.error_outline, size: 50),
 
-                const Icon(
-                  Icons.error_outline,
-                  size: 50,
-                ),
+                const SizedBox(height: 16),
 
-                const SizedBox(
-                  height: 16,
-                ),
+                Text(_error!, textAlign: TextAlign.center),
 
-                Text(
-                  _error!,
-                  textAlign:
-                      TextAlign.center,
-                ),
-
-                const SizedBox(
-                  height: 16,
-                ),
+                const SizedBox(height: 16),
 
                 ElevatedButton(
-                  onPressed:
-                      _loadTransactions,
+                  onPressed: _loadTransactions,
 
-                  child: const Text(
-                    'Tentar novamente',
-                  ),
+                  child: const Text('Tentar novamente'),
                 ),
               ],
             ),
@@ -201,51 +142,28 @@ class _TransactionsPageState
     );
   }
 
-  Widget _buildTransaction(
-    LoyaltyTransaction transaction,
-  ) {
-
-    final isPositive =
-        transaction.points > 0;
+  Widget _buildTransaction(LoyaltyTransaction transaction) {
+    final isPositive = transaction.points > 0;
 
     return Card(
-      margin:
-          const EdgeInsets.only(
-        bottom: 10,
-      ),
+      margin: const EdgeInsets.only(bottom: 10),
 
       child: ListTile(
-
         leading: CircleAvatar(
-          backgroundColor:
-              isPositive
-                  ? Colors.green
-                      .withValues(alpha: .12)
-                  : Colors.red
-                      .withValues(alpha: .12),
+          backgroundColor: isPositive
+              ? Colors.green.withValues(alpha: .12)
+              : Colors.red.withValues(alpha: .12),
 
           child: Icon(
-            isPositive
-                ? Icons.add
-                : Icons.remove,
+            isPositive ? Icons.add : Icons.remove,
 
-            color:
-                isPositive
-                    ? Colors.green
-                    : Colors.red,
+            color: isPositive ? Colors.green : Colors.red,
           ),
         ),
 
-        title: Text(
-          transaction.description ??
-              'Movimentação de pontos',
-        ),
+        title: Text(transaction.description ?? 'Movimentação de pontos'),
 
-        subtitle: Text(
-          _formatDate(
-            transaction.createdAt,
-          ),
-        ),
+        subtitle: Text(_formatDate(transaction.createdAt)),
 
         trailing: Text(
           '${isPositive ? '+' : ''}'
@@ -253,60 +171,27 @@ class _TransactionsPageState
 
           style: TextStyle(
             fontSize: 17,
-            fontWeight:
-                FontWeight.bold,
+            fontWeight: FontWeight.bold,
 
-            color:
-                isPositive
-                    ? Colors.green
-                    : Colors.red,
+            color: isPositive ? Colors.green : Colors.red,
           ),
         ),
       ),
     );
   }
 
-  String _formatDate(
-    DateTime date,
-  ) {
+  String _formatDate(DateTime date) {
+    final local = date.toLocal();
 
-    final local =
-        date.toLocal();
+    final day = local.day.toString().padLeft(2, '0');
 
-    final day =
-        local.day
-            .toString()
-            .padLeft(
-              2,
-              '0',
-            );
+    final month = local.month.toString().padLeft(2, '0');
 
-    final month =
-        local.month
-            .toString()
-            .padLeft(
-              2,
-              '0',
-            );
+    final year = local.year.toString();
 
-    final year =
-        local.year.toString();
+    final hour = local.hour.toString().padLeft(2, '0');
 
-    final hour =
-        local.hour
-            .toString()
-            .padLeft(
-              2,
-              '0',
-            );
-
-    final minute =
-        local.minute
-            .toString()
-            .padLeft(
-              2,
-              '0',
-            );
+    final minute = local.minute.toString().padLeft(2, '0');
 
     return '$day/$month/$year às '
         '$hour:$minute';

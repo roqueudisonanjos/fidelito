@@ -42,9 +42,7 @@ class CompanyDashboardService {
 
     final company = await _supabase
         .from('companies')
-        .select(
-          'id, name, description, logo_url',
-        )
+        .select('id, name, description, logo_url')
         .eq('owner_id', user.id)
         .eq('active', true)
         .maybeSingle();
@@ -63,9 +61,7 @@ class CompanyDashboardService {
 
     final transactions = await _supabase
         .from('loyalty_transactions')
-        .select(
-          'id, customer_id, type, points, promotion_id, created_at',
-        )
+        .select('id, customer_id, type, points, promotion_id, created_at')
         .eq('company_id', companyId);
 
     // ============================================================
@@ -81,16 +77,14 @@ class CompanyDashboardService {
       final customerId = transaction['customer_id'];
 
       if (customerId != null) {
-        customerIds.add(
-          customerId.toString(),
-        );
+        customerIds.add(customerId.toString());
       }
     }
 
     // ============================================================
     // 4. BENEFÍCIOS UTILIZADOS
     //
-    // redeem = resgate de benefício/pontos.
+    // redeem = resgate de recompensa/pontos.
     // ============================================================
 
     int benefitsUsed = 0;
@@ -109,9 +103,7 @@ class CompanyDashboardService {
 
     final qrCodes = await _supabase
         .from('qr_codes')
-        .select(
-          'id, active, used_at',
-        )
+        .select('id, active, used_at')
         .eq('company_id', companyId);
 
     int activeQrCodes = 0;
@@ -134,14 +126,11 @@ class CompanyDashboardService {
     return CompanyDashboardData(
       companyId: companyId,
 
-      companyName:
-          company['name']?.toString() ?? 'Empresa',
+      companyName: company['name']?.toString() ?? 'Empresa',
 
-      companyDescription:
-          company['description']?.toString(),
+      companyDescription: company['description']?.toString(),
 
-      companyLogoUrl:
-          company['logo_url']?.toString(),
+      companyLogoUrl: company['logo_url']?.toString(),
 
       benefitsUsed: benefitsUsed,
 

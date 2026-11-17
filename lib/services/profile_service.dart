@@ -1,8 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ProfileService {
-  final SupabaseClient _supabase =
-      Supabase.instance.client;
+  final SupabaseClient _supabase = Supabase.instance.client;
 
   Future<Map<String, dynamic>?> getProfile() async {
     final user = _supabase.auth.currentUser;
@@ -25,6 +24,7 @@ class ProfileService {
     required String whatsapp,
     required String city,
     required String state,
+    String? avatarUrl,
   }) async {
     final user = _supabase.auth.currentUser;
 
@@ -32,17 +32,15 @@ class ProfileService {
       throw Exception('Usuário não autenticado.');
     }
 
-    await _supabase
-        .from('profiles')
-        .update({
-          'full_name': fullName.trim(),
-          'whatsapp': whatsapp.replaceAll(
-            RegExp(r'\D'),
-            '',
-          ),
-          'city': city.trim().isEmpty ? null : city.trim(),
-          'state': state.trim().isEmpty ? null : state.trim().toUpperCase(),
-        })
-        .eq('id', user.id);
+    await _supabase.rpc(
+      'update_my_profile',
+      params: {
+        'p_full_name': fullName.trim(),
+        'p_whatsapp': whatsapp.replaceAll(RegExp(r'\D'), ''),
+        'p_city': city.trim().isEmpty ? null : city.trim(),
+        'p_state': state.trim().isEmpty ? null : state.trim().toUpperCase(),
+        'p_avatar_url': avatarUrl,
+      },
+    );
   }
 }

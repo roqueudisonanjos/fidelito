@@ -4,28 +4,20 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import '../../services/benefit_service.dart';
 
 class BenefitScannerPage extends StatefulWidget {
-  const BenefitScannerPage({
-    super.key,
-  });
+  const BenefitScannerPage({super.key});
 
   @override
-  State<BenefitScannerPage> createState() =>
-      _BenefitScannerPageState();
+  State<BenefitScannerPage> createState() => _BenefitScannerPageState();
 }
 
-class _BenefitScannerPageState
-    extends State<BenefitScannerPage> {
-
-  final BenefitService _service =
-      BenefitService();
+class _BenefitScannerPageState extends State<BenefitScannerPage> {
+  final BenefitService _service = BenefitService();
 
   bool _processing = false;
 
   String? _error;
 
-  Future<void> _processQr(
-    String code,
-  ) async {
+  Future<void> _processQr(String code) async {
     if (_processing) {
       return;
     }
@@ -36,10 +28,7 @@ class _BenefitScannerPageState
     });
 
     try {
-      final result =
-          await _service.validateBenefit(
-        code,
-      );
+      final result = await _service.validateBenefit(code);
 
       if (!mounted) return;
 
@@ -48,33 +37,23 @@ class _BenefitScannerPageState
         barrierDismissible: false,
         builder: (context) {
           return AlertDialog(
-            icon: const Icon(
-              Icons.check_circle,
-              color: Colors.green,
-              size: 64,
-            ),
+            icon: const Icon(Icons.check_circle, color: Colors.green, size: 64),
 
-            title: const Text(
-              'Benefício validado!',
-            ),
+            title: const Text('Recompensa validada!'),
 
             content: Text(
               '${result['title']}\n\n'
               'Pontos utilizados: '
               '${result['points_spent']}\n\n'
-              'O benefício foi marcado como utilizado.',
+              'A recompensa foi marcada como utilizado.',
             ),
 
             actions: [
               TextButton(
                 onPressed: () {
-                  Navigator.pop(
-                    context,
-                  );
+                  Navigator.pop(context);
                 },
-                child: const Text(
-                  'OK',
-                ),
+                child: const Text('OK'),
               ),
             ],
           );
@@ -83,41 +62,25 @@ class _BenefitScannerPageState
 
       if (!mounted) return;
 
-      Navigator.pop(
-        context,
-        true,
-      );
-
+      Navigator.pop(context, true);
     } catch (e) {
       if (!mounted) return;
 
       setState(() {
         _processing = false;
 
-        _error = e
-            .toString()
-            .replaceFirst(
-              'Exception: ',
-              '',
-            );
+        _error = e.toString().replaceFirst('Exception: ', '');
       });
     }
   }
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'Validar benefício',
-        ),
-      ),
+      appBar: AppBar(title: const Text('Validar recompensa')),
 
       body: Stack(
         children: [
-
           MobileScanner(
             onDetect: (capture) {
               if (_processing) {
@@ -128,14 +91,11 @@ class _BenefitScannerPageState
                 return;
               }
 
-              final barcode =
-                  capture.barcodes.first;
+              final barcode = capture.barcodes.first;
 
-              final value =
-                  barcode.rawValue;
+              final value = barcode.rawValue;
 
-              if (value == null ||
-                  value.isEmpty) {
+              if (value == null || value.isEmpty) {
                 return;
               }
 
@@ -148,17 +108,10 @@ class _BenefitScannerPageState
               width: 280,
               height: 280,
 
-              decoration:
-                  BoxDecoration(
-                border: Border.all(
-                  color: Colors.white,
-                  width: 4,
-                ),
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.white, width: 4),
 
-                borderRadius:
-                    BorderRadius.circular(
-                  20,
-                ),
+                borderRadius: BorderRadius.circular(20),
               ),
             ),
           ),
@@ -170,70 +123,42 @@ class _BenefitScannerPageState
 
             child: Column(
               children: [
-
                 if (_error != null)
                   Container(
                     width: double.infinity,
 
-                    padding:
-                        const EdgeInsets.all(
-                      16,
-                    ),
+                    padding: const EdgeInsets.all(16),
 
-                    margin:
-                        const EdgeInsets.only(
-                      bottom: 16,
-                    ),
+                    margin: const EdgeInsets.only(bottom: 16),
 
-                    decoration:
-                        BoxDecoration(
-                      color:
-                          Colors.black87,
+                    decoration: BoxDecoration(
+                      color: Colors.black87,
 
-                      borderRadius:
-                          BorderRadius.circular(
-                        12,
-                      ),
+                      borderRadius: BorderRadius.circular(12),
                     ),
 
                     child: Text(
                       _error!,
-                      textAlign:
-                          TextAlign.center,
+                      textAlign: TextAlign.center,
 
-                      style:
-                          const TextStyle(
-                        color: Colors.white,
-                      ),
+                      style: const TextStyle(color: Colors.white),
                     ),
                   ),
 
                 Container(
-                  padding:
-                      const EdgeInsets.all(
-                    14,
-                  ),
+                  padding: const EdgeInsets.all(14),
 
-                  decoration:
-                      BoxDecoration(
-                    color:
-                        Colors.black54,
+                  decoration: BoxDecoration(
+                    color: Colors.black54,
 
-                    borderRadius:
-                        BorderRadius.circular(
-                      12,
-                    ),
+                    borderRadius: BorderRadius.circular(12),
                   ),
 
                   child: const Text(
-                    'Aponte a câmera para o QR Code do benefício',
-                    textAlign:
-                        TextAlign.center,
+                    'Aponte a câmera para o QR Code da recompensa',
+                    textAlign: TextAlign.center,
 
-                    style:
-                        TextStyle(
-                      color: Colors.white,
-                    ),
+                    style: TextStyle(color: Colors.white),
                   ),
                 ),
               ],
@@ -246,23 +171,16 @@ class _BenefitScannerPageState
 
               child: const Center(
                 child: Column(
-                  mainAxisSize:
-                      MainAxisSize.min,
+                  mainAxisSize: MainAxisSize.min,
 
                   children: [
-
                     CircularProgressIndicator(),
 
-                    SizedBox(
-                      height: 16,
-                    ),
+                    SizedBox(height: 16),
 
                     Text(
-                      'Validando benefício...',
-                      style:
-                          TextStyle(
-                        color: Colors.white,
-                      ),
+                      'Validanda recompensa...',
+                      style: TextStyle(color: Colors.white),
                     ),
                   ],
                 ),

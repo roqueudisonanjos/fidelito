@@ -34,47 +34,36 @@ class PromotionRedemption {
     this.companyName,
   });
 
-  factory PromotionRedemption.fromMap(Map<String, dynamic> map,) {
+  factory PromotionRedemption.fromMap(Map<String, dynamic> map) {
     final promotion = map['promotions'] as Map<String, dynamic>?;
 
-    final company =
-        map['companies'] as Map<String, dynamic>?;
+    final company = map['companies'] as Map<String, dynamic>?;
 
     return PromotionRedemption(
       id: map['id'] as String,
       promotionId: map['promotion_id'] as String,
       companyId: map['company_id'] as String,
       customerId: map['customer_id'] as String,
-      pointsSpent:
-          (map['points_spent'] as num).toInt(),
+      pointsSpent: (map['points_spent'] as num).toInt(),
       status: map['status'] as String,
-      redeemedAt:
-          DateTime.parse(map['redeemed_at'] as String),
+      redeemedAt: DateTime.parse(map['redeemed_at'] as String),
       usedAt: map['used_at'] != null
           ? DateTime.parse(map['used_at'] as String)
           : null,
-      createdAt:
-          DateTime.parse(map['created_at'] as String),
+      createdAt: DateTime.parse(map['created_at'] as String),
 
-      promotionTitle:
-          promotion?['title'] as String?,
+      promotionTitle: promotion?['title'] as String?,
 
-      promotionDescription:
-          promotion?['description'] as String?,
+      promotionDescription: promotion?['description'] as String?,
 
-      promotionType:
-          promotion?['type'] as String?,
+      promotionType: promotion?['type'] as String?,
 
-      discountPercentage:
-          promotion?['discount_percentage'] as num?,
+      discountPercentage: promotion?['discount_percentage'] as num?,
 
-      giftDescription:
-          promotion?['gift_description'] as String?,
+      giftDescription: promotion?['gift_description'] as String?,
 
-      companyName:
-          company?['name'] as String?,
+      companyName: company?['name'] as String?,
     );
-
   }
 
   bool get isAvailable => status == 'available';
@@ -92,8 +81,7 @@ class PromotionRedemption {
       return giftDescription!;
     }
 
-    return promotionTitle ?? 'Benefício';
-
+    return promotionTitle ?? 'Recompensa';
   }
 
   String get statusText {
@@ -109,6 +97,6 @@ class PromotionRedemption {
 
       default:
         return status;
-      }
     }
+  }
 }

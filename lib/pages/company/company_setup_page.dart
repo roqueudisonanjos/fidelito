@@ -2,41 +2,37 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../services/company_service.dart';
+import '../../services/image_upload_service.dart';
+import '../../widgets/change_password_section.dart';
+import '../../widgets/delete_account_section.dart';
 
 class CompanySetupPage extends StatefulWidget {
-  const CompanySetupPage({
-    super.key,
-  });
+  const CompanySetupPage({super.key});
 
   @override
-  State<CompanySetupPage> createState() =>
-      _CompanySetupPageState();
+  State<CompanySetupPage> createState() => _CompanySetupPageState();
 }
 
-class _CompanySetupPageState
-    extends State<CompanySetupPage> {
-  final _formKey =
-      GlobalKey<FormState>();
+class _CompanySetupPageState extends State<CompanySetupPage> {
+  final _formKey = GlobalKey<FormState>();
 
-  final _nameController =
-      TextEditingController();
+  final _nameController = TextEditingController();
 
-  final _descriptionController =
-      TextEditingController();
+  final _descriptionController = TextEditingController();
 
-  final _phoneController =
-      TextEditingController();
+  final _phoneController = TextEditingController();
 
-  final _addressController =
-      TextEditingController();
+  final _addressController = TextEditingController();
 
   final _cityController = TextEditingController();
   final _stateController = TextEditingController();
 
-  final CompanyService _companyService =
-      CompanyService();
+  final CompanyService _companyService = CompanyService();
 
   bool _loading = true;
+  bool _uploadingLogo = false;
+  String? _logoUrl;
+  final ImageUploadService _imageUploadService = ImageUploadService();
 
   bool _saving = false;
 
@@ -61,34 +57,67 @@ class _CompanySetupPageState
 
   Future<void> _loadCompany() async {
     try {
-      final company =
-          await _companyService.getMyCompany();
+      final company = await _companyService.getMyCompany();
 
       if (!mounted) return;
 
       if (company != null) {
-        _nameController.text =
-            company['name']?.toString() ?? '';
+        _nameController.text = company['name']?.toString() ?? '';
 
-        _descriptionController.text =
-            company['description']
-                    ?.toString() ??
-                '';
+        _descriptionController.text = company['description']?.toString() ?? '';
 
-        _phoneController.text =
-            company['phone']?.toString() ?? '';
+        _phoneController.text = company['phone']?.toString() ?? '';
 
-        _addressController.text =
-            company['address']?.toString() ??
-                '';
+        _addressController.text = company['address']?.toString() ?? '';
         _cityController.text = company['city']?.toString() ?? '';
         _stateController.text = company['state']?.toString() ?? '';
+        _logoUrl = company['logo_url']?.toString();
 
         setState(() {
           _editing = true;
           _loading = false;
         });
       } else {
+        // Aproveita os dados informados na criação da conta para evitar
+        // que o responsável precise digitar nome e WhatsApp novamente.
+        // Os campos continuam editáveis caso os dados comerciais sejam diferentes.
+        final user = Supabase.instance.client.auth.currentUser;
+        final metadata = user?.userMetadata ?? <String, dynamic>{};
+        Map<String, dynamic>? profile;
+
+        if (user != null) {
+          try {
+            profile = await Supabase.instance.client
+                .from('profiles')
+                .select('full_name, whatsapp')
+                .eq('id', user.id)
+                .maybeSingle();
+          } catch (error) {
+            debugPrint(
+              'Não foi possível carregar os dados do perfil para pré-preencher a empresa: $error',
+            );
+          }
+        }
+
+        if (!mounted) return;
+
+        String firstNonEmpty(List<dynamic> values) {
+          for (final value in values) {
+            final text = value?.toString().trim() ?? '';
+            if (text.isNotEmpty) return text;
+          }
+          return '';
+        }
+
+        _nameController.text = firstNonEmpty([
+          profile?['full_name'],
+          metadata['full_name'],
+        ]);
+        _phoneController.text = firstNonEmpty([
+          profile?['whatsapp'],
+          metadata['phone'],
+        ]);
+
         setState(() {
           _editing = false;
           _loading = false;
@@ -100,12 +129,7 @@ class _CompanySetupPageState
       setState(() {
         _loading = false;
 
-        _error = e
-            .toString()
-            .replaceFirst(
-              'Exception: ',
-              '',
-            );
+        _error = e.toString().replaceFirst('Exception: ', '');
       });
     }
   }
@@ -114,7 +138,24 @@ class _CompanySetupPageState
   // SALVAR
   // ============================================================
 
-  
+  Future<void> _pickLogo() async {
+    setState(() => _uploadingLogo = true);
+    try {
+      final url = await _imageUploadService.pickAndUpload(
+        folder: 'companies',
+        filePrefix: 'logo',
+      );
+      if (url != null && mounted) setState(() => _logoUrl = url);
+    } catch (e) {
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+        );
+    } finally {
+      if (mounted) setState(() => _uploadingLogo = false);
+    }
+  }
+
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -138,8 +179,13 @@ class _CompanySetupPageState
           address: _addressController.text.trim().isEmpty
               ? null
               : _addressController.text.trim(),
-          city: _cityController.text.trim().isEmpty ? null : _cityController.text.trim(),
-          state: _stateController.text.trim().isEmpty ? null : _stateController.text.trim(),
+          city: _cityController.text.trim().isEmpty
+              ? null
+              : _cityController.text.trim(),
+          state: _stateController.text.trim().isEmpty
+              ? null
+              : _stateController.text.trim(),
+          logoUrl: _logoUrl,
         );
 
         if (!mounted) return;
@@ -166,12 +212,33 @@ class _CompanySetupPageState
         address: _addressController.text.trim().isEmpty
             ? null
             : _addressController.text.trim(),
-        city: _cityController.text.trim().isEmpty ? null : _cityController.text.trim(),
-        state: _stateController.text.trim().isEmpty ? null : _stateController.text.trim(),
+        city: _cityController.text.trim().isEmpty
+            ? null
+            : _cityController.text.trim(),
+        state: _stateController.text.trim().isEmpty
+            ? null
+            : _stateController.text.trim(),
       );
+      if (_logoUrl != null) {
+        await _companyService.updateCompany(
+          name: _nameController.text.trim(),
+          description: _descriptionController.text.trim().isEmpty
+              ? null
+              : _descriptionController.text.trim(),
+          phone: _phoneController.text.trim().isEmpty
+              ? null
+              : _phoneController.text.trim(),
+          address: _addressController.text.trim().isEmpty
+              ? null
+              : _addressController.text.trim(),
+          city: _cityController.text.trim(),
+          state: _stateController.text.trim(),
+          logoUrl: _logoUrl,
+        );
+      }
 
       // O cadastro já foi salvo; agora tentamos enviar a notificação.
-      
+
       try {
         final result = await Supabase.instance.client.functions.invoke(
           'notify-company-registration',
@@ -187,7 +254,6 @@ class _CompanySetupPageState
         emailSent = false;
       }
 
-
       if (!mounted) return;
 
       setState(() => _saving = false);
@@ -201,13 +267,13 @@ class _CompanySetupPageState
             content: Text(
               emailSent
                   ? 'Recebemos os dados da sua empresa! '
-                      'Nossa equipe entrará em contato pelo WhatsApp informado. '
-                      'Aguarde nosso contato. '
-                      'Seu acesso será liberado após a aprovação.'
+                        'Nossa equipe entrará em contato pelo WhatsApp informado. '
+                        'Aguarde nosso contato. '
+                        'Seu acesso será liberado após a aprovação.'
                   : 'Os dados da sua empresa foram salvos, mas não conseguimos '
-                      'enviar a notificação para nossa equipe. '
-                      'Seu cadastro continua pendente. '
-                      'Entre novamente para tentar reenviar a solicitação.',
+                        'enviar a notificação para nossa equipe. '
+                        'Seu cadastro continua pendente. '
+                        'Entre novamente para tentar reenviar a solicitação.',
             ),
             actions: [
               FilledButton(
@@ -260,17 +326,10 @@ class _CompanySetupPageState
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          _editing
-              ? 'Dados da empresa'
-              : 'Configurar empresa',
-        ),
+        title: Text(_editing ? 'Dados da empresa' : 'Configurar empresa'),
       ),
       body: _loading
-          ? const Center(
-              child:
-                  CircularProgressIndicator(),
-            )
+          ? const Center(child: CircularProgressIndicator())
           : _buildForm(),
     );
   }
@@ -282,86 +341,92 @@ class _CompanySetupPageState
   Widget _buildForm() {
     return Center(
       child: ConstrainedBox(
-        constraints:
-            const BoxConstraints(
-          maxWidth: 600,
-        ),
+        constraints: const BoxConstraints(maxWidth: 600),
         child: SingleChildScrollView(
-          padding:
-              const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(24),
           child: Form(
             key: _formKey,
             child: Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment.stretch,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const SizedBox(
-                  height: 20,
-                ),
+                const SizedBox(height: 20),
 
                 Icon(
-                  _editing
-                      ? Icons
-                          .business_outlined
-                      : Icons.business,
+                  _editing ? Icons.business_outlined : Icons.business,
                   size: 70,
                 ),
 
-                const SizedBox(
-                  height: 20,
-                ),
+                const SizedBox(height: 20),
 
                 Text(
-                  _editing
-                      ? 'Dados da empresa'
-                      : 'Configure sua empresa',
-                  textAlign:
-                      TextAlign.center,
-                  style:
-                      const TextStyle(
+                  _editing ? 'Dados da empresa' : 'Configure sua empresa',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
                     fontSize: 28,
-                    fontWeight:
-                        FontWeight.bold,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
 
-                const SizedBox(
-                  height: 8,
-                ),
+                const SizedBox(height: 8),
 
                 Text(
                   _editing
                       ? 'Atualize as informações da sua empresa.'
-                      : 'Essas informações serão utilizadas no seu perfil dentro do SaveGift.',
-                  textAlign:
-                      TextAlign.center,
+                      : 'Essas informações serão utilizadas no seu perfil dentro do Fidelito.',
+                  textAlign: TextAlign.center,
                 ),
 
-                const SizedBox(
-                  height: 32,
+                const SizedBox(height: 32),
+
+                Center(
+                  child: Column(
+                    children: [
+                      CircleAvatar(
+                        radius: 46,
+                        backgroundImage: _logoUrl == null || _logoUrl!.isEmpty
+                            ? null
+                            : NetworkImage(_logoUrl!),
+                        child: _logoUrl == null || _logoUrl!.isEmpty
+                            ? const Icon(Icons.storefront, size: 42)
+                            : null,
+                      ),
+                      const SizedBox(height: 8),
+                      OutlinedButton.icon(
+                        onPressed: _uploadingLogo ? null : _pickLogo,
+                        icon: _uploadingLogo
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(Icons.image_outlined),
+                        label: Text(
+                          _uploadingLogo
+                              ? 'Enviando imagem...'
+                              : 'Escolher foto da empresa',
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
+                const SizedBox(height: 24),
 
                 // ==================================================
                 // NOME
                 // ==================================================
-
                 TextFormField(
-                  controller:
-                      _nameController,
-                  decoration:
-                      const InputDecoration(
-                    labelText:
-                        'Nome da empresa',
-                    prefixIcon:
-                        Icon(Icons.business),
-                    border:
-                        OutlineInputBorder(),
+                  controller: _nameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Nome da empresa',
+                    helperText:
+                        'Preenchido com o nome do cadastro. Altere se o nome comercial for diferente.',
+                    prefixIcon: Icon(Icons.business),
+                    border: OutlineInputBorder(),
                   ),
                   validator: (value) {
-                    if (value == null ||
-                        value
-                            .trim()
-                            .isEmpty) {
+                    if (value == null || value.trim().isEmpty) {
                       return 'Informe o nome da empresa.';
                     }
 
@@ -369,66 +434,42 @@ class _CompanySetupPageState
                   },
                 ),
 
-                const SizedBox(
-                  height: 16,
-                ),
+                const SizedBox(height: 16),
 
                 // ==================================================
                 // DESCRIÇÃO
                 // ==================================================
-
                 TextFormField(
-                  controller:
-                      _descriptionController,
+                  controller: _descriptionController,
                   maxLines: 3,
-                  decoration:
-                      const InputDecoration(
-                    labelText:
-                        'Descrição',
-                    hintText:
-                        'Ex.: Serviços de estética variados',
-                    alignLabelWithHint:
-                        true,
-                    prefixIcon:
-                        Icon(Icons.description),
-                    border:
-                        OutlineInputBorder(),
+                  decoration: const InputDecoration(
+                    labelText: 'Descrição',
+                    hintText: 'Ex.: Serviços de estética variados',
+                    alignLabelWithHint: true,
+                    prefixIcon: Icon(Icons.description),
+                    border: OutlineInputBorder(),
                   ),
                 ),
 
-                const SizedBox(
-                  height: 16,
-                ),
+                const SizedBox(height: 16),
 
                 // ==================================================
                 // WHATSAPP
                 // ==================================================
-
                 TextFormField(
-                  controller:
-                      _phoneController,
-                  keyboardType:
-                      TextInputType.phone,
-                  decoration:
-                      const InputDecoration(
-                    labelText:
-                        'WhatsApp',
-                    prefixIcon:
-                        Icon(Icons.phone),
-                    border:
-                        OutlineInputBorder(),
+                  controller: _phoneController,
+                  keyboardType: TextInputType.phone,
+                  decoration: const InputDecoration(
+                    labelText: 'WhatsApp comercial',
+                    helperText:
+                        'Preenchido com o WhatsApp do cadastro. Altere se a empresa usar outro número.',
+                    prefixIcon: Icon(Icons.phone),
+                    border: OutlineInputBorder(),
                   ),
                   validator: (value) {
-                    final numbers =
-                        value
-                                ?.replaceAll(
-                              RegExp(r'\D'),
-                              '',
-                            ) ??
-                            '';
+                    final numbers = value?.replaceAll(RegExp(r'\D'), '') ?? '';
 
-                    if (numbers.length <
-                        10) {
+                    if (numbers.length < 10) {
                       return 'Informe um WhatsApp válido.';
                     }
 
@@ -436,32 +477,20 @@ class _CompanySetupPageState
                   },
                 ),
 
-                const SizedBox(
-                  height: 16,
-                ),
+                const SizedBox(height: 16),
 
                 // ==================================================
                 // ENDEREÇO
                 // ==================================================
-
                 TextFormField(
-                  controller:
-                      _addressController,
+                  controller: _addressController,
                   maxLines: 2,
-                  decoration:
-                      const InputDecoration(
-                    labelText:
-                        'Endereço',
-                    hintText:
-                        'Ex.: Rua Goiás, Número 81, Getat',
-                    alignLabelWithHint:
-                        true,
-                    prefixIcon:
-                        Icon(
-                      Icons.location_on,
-                    ),
-                    border:
-                        OutlineInputBorder(),
+                  decoration: const InputDecoration(
+                    labelText: 'Endereço',
+                    hintText: 'Ex.: Rua Goiás, Número 81, Getat',
+                    alignLabelWithHint: true,
+                    prefixIcon: Icon(Icons.location_on),
+                    border: OutlineInputBorder(),
                   ),
                 ),
 
@@ -476,7 +505,8 @@ class _CompanySetupPageState
                     border: OutlineInputBorder(),
                   ),
                   validator: (value) => value == null || value.trim().isEmpty
-                      ? 'Informe a cidade da empresa.' : null,
+                      ? 'Informe a cidade da empresa.'
+                      : null,
                 ),
 
                 const SizedBox(height: 16),
@@ -499,49 +529,36 @@ class _CompanySetupPageState
                 // ==================================================
                 // ERRO
                 // ==================================================
-
                 if (_error != null)
                   Padding(
-                    padding:
-                        const EdgeInsets.only(
-                      bottom: 16,
-                    ),
+                    padding: const EdgeInsets.only(bottom: 16),
                     child: Text(
                       _error!,
-                      textAlign:
-                          TextAlign.center,
-                      style:
-                          const TextStyle(
-                        color: Colors.red,
-                      ),
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: Colors.red),
                     ),
                   ),
+
+                const ChangePasswordSection(),
+                const SizedBox(height: 20),
+                const DeleteAccountSection(isCompany: true),
+                const SizedBox(height: 20),
 
                 // ==================================================
                 // BOTÃO
                 // ==================================================
-
                 SizedBox(
                   height: 52,
-                  child:
-                      ElevatedButton(
-                    onPressed:
-                        _saving
-                            ? null
-                            : _save,
+                  child: ElevatedButton(
+                    onPressed: _saving ? null : _save,
                     child: _saving
                         ? const SizedBox(
                             width: 22,
                             height: 22,
-                            child:
-                                CircularProgressIndicator(
-                              strokeWidth: 2,
-                            ),
+                            child: CircularProgressIndicator(strokeWidth: 2),
                           )
                         : Text(
-                            _editing
-                                ? 'Salvar alterações'
-                                : 'Criar empresa',
+                            _editing ? 'Salvar alterações' : 'Criar empresa',
                           ),
                   ),
                 ),

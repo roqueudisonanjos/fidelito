@@ -90,7 +90,10 @@ class _ExplorePageState extends State<ExplorePage> {
 
   Future<void> _load() async {
     if (!_locationInitialized && _loading) return;
-    setState(() { _loading = true; _error = null; });
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
       final city = _cityController.text.trim();
       final state = _stateController.text.trim();
@@ -114,16 +117,28 @@ class _ExplorePageState extends State<ExplorePage> {
     }
   }
 
+  Future<void> _openLoyaltyProgram(Map<String, dynamic> company) async {
+    final left = await context.push<bool>(
+      '/customer/loyalty-program',
+      extra: company,
+    );
+    if (left == true && mounted) await _load();
+  }
+
   Future<void> _join(Map<String, dynamic> company) async {
     try {
       await _service.joinProgram(company['id'].toString());
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Agora você participa da fidelidade de ${company['name']}!')),
+        SnackBar(
+          content: Text(
+            'Agora você participa da fidelidade de ${company['name']}!',
+          ),
+        ),
       );
       await _load();
       if (!mounted) return;
-      context.push('/customer/loyalty-program', extra: company);
+      _openLoyaltyProgram(company);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -136,122 +151,241 @@ class _ExplorePageState extends State<ExplorePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Explorar empresas')),
-      body: Column(children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-          child: Column(children: [
-            if (_cityController.text.trim().isEmpty)
-              const Padding(
-                padding: EdgeInsets.only(bottom: 10),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    'Informe sua cidade ou permita o acesso à localização para ver empresas próximas.',
-                    style: TextStyle(color: Colors.grey, fontSize: 12),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: Column(
+              children: [
+                if (_cityController.text.trim().isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.only(bottom: 10),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'Informe sua cidade ou permita o acesso à localização para ver empresas próximas.',
+                        style: TextStyle(color: Colors.grey, fontSize: 12),
+                      ),
+                    ),
+                  ),
+                TextField(
+                  controller: _cityController,
+                  textInputAction: TextInputAction.next,
+                  decoration: const InputDecoration(
+                    labelText: 'Cidade',
+                    hintText: 'Ex.: Tucuruí',
+                    prefixIcon: Icon(Icons.location_on_outlined),
+                    border: OutlineInputBorder(),
+                  ),
+                  onSubmitted: (_) => _load(),
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _stateController,
+                        textCapitalization: TextCapitalization.characters,
+                        maxLength: 2,
+                        decoration: const InputDecoration(
+                          labelText: 'UF',
+                          hintText: 'PA',
+                          counterText: '',
+                          prefixIcon: Icon(Icons.map_outlined),
+                          border: OutlineInputBorder(),
+                        ),
+                        onSubmitted: (_) => _load(),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    IconButton.filledTonal(
+                      tooltip: 'Usar minha localização',
+                      onPressed: _gettingLocation ? null : _fillLocation,
+                      icon: _gettingLocation
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.my_location),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: _searchController,
+                  textInputAction: TextInputAction.search,
+                  decoration: InputDecoration(
+                    labelText: 'Empresa ou promoção',
+                    prefixIcon: const Icon(Icons.search),
+                    border: const OutlineInputBorder(),
+                    suffixIcon: IconButton(
+                      icon: const Icon(Icons.search),
+                      onPressed: _load,
+                    ),
+                  ),
+                  onSubmitted: (_) => _load(),
+                ),
+                const SizedBox(height: 8),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton.icon(
+                    onPressed: _load,
+                    icon: const Icon(Icons.filter_alt_outlined),
+                    label: const Text('Buscar'),
                   ),
                 ),
-              ),
-            TextField(
-              controller: _cityController,
-              textInputAction: TextInputAction.next,
-              decoration: const InputDecoration(
-                labelText: 'Cidade', hintText: 'Ex.: Tucuruí',
-                prefixIcon: Icon(Icons.location_on_outlined), border: OutlineInputBorder(),
-              ),
-              onSubmitted: (_) => _load(),
+              ],
             ),
-            const SizedBox(height: 10),
-            Row(children: [
-              Expanded(child: TextField(
-                controller: _stateController,
-                textCapitalization: TextCapitalization.characters,
-                maxLength: 2,
-                decoration: const InputDecoration(
-                  labelText: 'UF', hintText: 'PA', counterText: '',
-                  prefixIcon: Icon(Icons.map_outlined), border: OutlineInputBorder(),
-                ),
-                onSubmitted: (_) => _load(),
-              )),
-              const SizedBox(width: 8),
-              IconButton.filledTonal(
-                tooltip: 'Usar minha localização',
-                onPressed: _gettingLocation ? null : _fillLocation,
-                icon: _gettingLocation
-                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Icon(Icons.my_location),
-              ),
-            ]),
-            const SizedBox(height: 10),
-            TextField(
-              controller: _searchController,
-              textInputAction: TextInputAction.search,
-              decoration: InputDecoration(
-                labelText: 'Empresa ou promoção', prefixIcon: const Icon(Icons.search),
-                border: const OutlineInputBorder(),
-                suffixIcon: IconButton(icon: const Icon(Icons.search), onPressed: _load),
-              ),
-              onSubmitted: (_) => _load(),
-            ),
-            const SizedBox(height: 8),
-            Align(alignment: Alignment.centerRight, child: TextButton.icon(
-              onPressed: _load, icon: const Icon(Icons.filter_alt_outlined), label: const Text('Buscar'),
-            )),
-          ]),
-        ),
-        Expanded(child: _loading
-            ? const Center(child: CircularProgressIndicator())
-            : _error != null
-                ? Center(child: Padding(padding: const EdgeInsets.all(24), child: Text(_error!, textAlign: TextAlign.center)))
+          ),
+          Expanded(
+            child: _loading
+                ? const Center(child: CircularProgressIndicator())
+                : _error != null
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Text(_error!, textAlign: TextAlign.center),
+                    ),
+                  )
                 : RefreshIndicator(
                     onRefresh: _load,
                     child: ListView(
                       padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
                       children: [
-                        _sectionTitle('Empresas', Icons.storefront_outlined, _companies.length),
+                        _sectionTitle(
+                          'Empresas',
+                          Icons.storefront_outlined,
+                          _companies.length,
+                        ),
                         if (_companies.isEmpty)
-                          const Padding(padding: EdgeInsets.symmetric(vertical: 14), child: Text('Nenhuma empresa encontrada nesta localização.'))
+                          const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 14),
+                            child: Text(
+                              'Nenhuma empresa encontrada nesta localização.',
+                            ),
+                          )
                         else
                           ..._companies.map(_companyCard),
                         const SizedBox(height: 18),
-                        _sectionTitle('Promoções e descontos', Icons.local_offer_outlined, _promotions.length),
+                        _sectionTitle(
+                          'Promoções e descontos',
+                          Icons.local_offer_outlined,
+                          _promotions.length,
+                        ),
                         if (_promotions.isEmpty)
-                          const Padding(padding: EdgeInsets.symmetric(vertical: 14), child: Text('Nenhuma promoção disponível nesta localização no momento.'))
+                          const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 14),
+                            child: Text(
+                              'Nenhuma promoção disponível nesta localização no momento.',
+                            ),
+                          )
                         else
                           ..._promotions.map(_promotionCard),
                       ],
                     ),
-                  )),
-      ]),
+                  ),
+          ),
+        ],
+      ),
     );
   }
 
   Widget _sectionTitle(String title, IconData icon, int count) => Padding(
     padding: const EdgeInsets.only(bottom: 12),
-    child: Row(children: [Icon(icon), const SizedBox(width: 8), Expanded(child: Text(title, style: const TextStyle(fontSize: 19, fontWeight: FontWeight.bold))), Text('$count')]),
+    child: Row(
+      children: [
+        Icon(icon),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            title,
+            style: const TextStyle(fontSize: 19, fontWeight: FontWeight.bold),
+          ),
+        ),
+        Text('$count'),
+      ],
+    ),
   );
 
   Widget _companyCard(Map<String, dynamic> company) {
-    final city = [company['city'], company['state']]
-        .where((v) => v != null && v.toString().isNotEmpty).join(' - ');
+    final city = [
+      company['city'],
+      company['state'],
+    ].where((v) => v != null && v.toString().isNotEmpty).join(' - ');
     final joined = company['joined'] == true;
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(children: [
-            const CircleAvatar(child: Icon(Icons.storefront_outlined)),
-            const SizedBox(width: 12),
-            Expanded(child: Text(company['name']?.toString() ?? 'Empresa', style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold))),
-          ]),
-          if (city.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 8), child: Text(city, style: TextStyle(color: Theme.of(context).colorScheme.primary))),
-          if ((company['description'] ?? '').toString().trim().isNotEmpty)
-            Padding(padding: const EdgeInsets.only(top: 8), child: Text(company['description'].toString())),
-          const SizedBox(height: 12),
-          SizedBox(width: double.infinity, child: joined
-              ? OutlinedButton.icon(onPressed: () => context.push('/customer/loyalty-program', extra: company), icon: const Icon(Icons.check_circle_outline), label: const Text('Ver minha fidelidade'))
-              : FilledButton.icon(onPressed: () => _join(company), icon: const Icon(Icons.add), label: const Text('Participar da fidelidade'))),
-        ]),
+    return InkWell(
+      borderRadius: BorderRadius.circular(20),
+      onTap: () async {
+        final left = await context.push<bool>(
+          '/customer/company-details',
+          extra: company,
+        );
+        if (left == true && mounted) await _load();
+      },
+      child: Card(
+        margin: const EdgeInsets.only(bottom: 12),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  CircleAvatar(
+                    backgroundImage:
+                        (company['logo_url'] ?? '').toString().isNotEmpty
+                        ? NetworkImage(company['logo_url'].toString())
+                        : null,
+                    child: (company['logo_url'] ?? '').toString().isNotEmpty
+                        ? null
+                        : const Icon(Icons.storefront_outlined),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      company['name']?.toString() ?? 'Empresa',
+                      style: const TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              if (city.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(
+                    city,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                  ),
+                ),
+              if ((company['description'] ?? '').toString().trim().isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(company['description'].toString()),
+                ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: joined
+                    ? OutlinedButton.icon(
+                        onPressed: () => _openLoyaltyProgram(company),
+                        icon: const Icon(Icons.check_circle_outline),
+                        label: const Text('Ver minha fidelidade'),
+                      )
+                    : FilledButton.icon(
+                        onPressed: () => _join(company),
+                        icon: const Icon(Icons.add),
+                        label: const Text('Participar da fidelidade'),
+                      ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -263,45 +397,105 @@ class _ExplorePageState extends State<ExplorePage> {
     final reward = type == 'discount' && discount != null
         ? '${(discount as num).toStringAsFixed(0)}% de desconto'
         : (promotion['gift_description']?.toString().trim().isNotEmpty == true
-            ? promotion['gift_description'].toString() : 'Benefício especial');
-    final location = [company['city'], company['state']]
-        .where((v) => v != null && v.toString().isNotEmpty).join(' - ');
+              ? promotion['gift_description'].toString()
+              : 'Recompensa especial');
+    final location = [
+      company['city'],
+      company['state'],
+    ].where((v) => v != null && v.toString().isNotEmpty).join(' - ');
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(children: [
-            const Icon(Icons.local_offer_outlined), const SizedBox(width: 8),
-            Expanded(child: Text(promotion['title']?.toString() ?? 'Promoção', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold))),
-          ]),
-          const SizedBox(height: 8),
-          Text(reward, style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary)),
-          if ((promotion['description'] ?? '').toString().trim().isNotEmpty)
-            Padding(padding: const EdgeInsets.only(top: 6), child: Text(promotion['description'].toString())),
-          const SizedBox(height: 8),
-          Text('Disponível em ${company['name'] ?? 'Empresa'}${location.isEmpty ? '' : ' • $location'}', style: const TextStyle(color: Colors.grey)),
-          Text('Resgate: ${promotion['points_required'] ?? 0} pontos', style: const TextStyle(fontSize: 12, color: Colors.grey)),
-          const SizedBox(height: 10),
-          Align(alignment: Alignment.centerRight, child: Builder(builder: (context) {
-            final match = _companies.where((c) => c['id'].toString() == company['id']?.toString()).toList();
-            final joined = match.isNotEmpty && match.first['joined'] == true;
-            final companyForAction = match.isNotEmpty
-                ? match.first
-                : <String, dynamic>{...company, 'joined': false};
-            return TextButton.icon(
-              onPressed: () {
-                if (joined) {
-                  context.push('/customer/loyalty-program', extra: companyForAction);
-                } else {
-                  _join(companyForAction);
-                }
-              },
-              icon: Icon(joined ? Icons.check_circle_outline : Icons.add),
-              label: Text(joined ? 'Ver minha fidelidade' : 'Participar da fidelidade'),
-            );
-          })),
-        ]),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if ((promotion['image_url'] ?? '').toString().isNotEmpty) ...[
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.network(
+                  promotion['image_url'].toString(),
+                  height: 120,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                ),
+              ),
+              const SizedBox(height: 10),
+            ],
+            Row(
+              children: [
+                const Icon(Icons.local_offer_outlined),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    promotion['title']?.toString() ?? 'Promoção',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              reward,
+              style: TextStyle(
+                fontSize: 19,
+                fontWeight: FontWeight.bold,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+            ),
+            if ((promotion['description'] ?? '').toString().trim().isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Text(promotion['description'].toString()),
+              ),
+            const SizedBox(height: 8),
+            Text(
+              'Disponível em ${company['name'] ?? 'Empresa'}${location.isEmpty ? '' : ' • $location'}',
+              style: const TextStyle(color: Colors.grey),
+            ),
+            Text(
+              'Resgate: ${promotion['points_required'] ?? 0} pontos',
+              style: const TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+            const SizedBox(height: 10),
+            Align(
+              alignment: Alignment.centerRight,
+              child: Builder(
+                builder: (context) {
+                  final match = _companies
+                      .where(
+                        (c) => c['id'].toString() == company['id']?.toString(),
+                      )
+                      .toList();
+                  final joined =
+                      match.isNotEmpty && match.first['joined'] == true;
+                  final companyForAction = match.isNotEmpty
+                      ? match.first
+                      : <String, dynamic>{...company, 'joined': false};
+                  return TextButton.icon(
+                    onPressed: () {
+                      if (joined) {
+                        _openLoyaltyProgram(companyForAction);
+                      } else {
+                        _join(companyForAction);
+                      }
+                    },
+                    icon: Icon(joined ? Icons.check_circle_outline : Icons.add),
+                    label: Text(
+                      joined
+                          ? 'Ver minha fidelidade'
+                          : 'Participar da fidelidade',
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
