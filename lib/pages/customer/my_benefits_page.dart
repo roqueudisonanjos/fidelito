@@ -204,19 +204,6 @@ class _MyBenefitsPageState extends State<MyBenefitsPage> {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    width: 52,
-                    height: 52,
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.primaryContainer,
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: Icon(
-                      Icons.card_giftcard,
-                      color: Theme.of(context).colorScheme.onPrimaryContainer,
-                    ),
-                  ),
-                  const SizedBox(width: 14),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,

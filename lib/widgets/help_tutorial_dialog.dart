@@ -19,7 +19,12 @@ class HelpTutorialDialog {
             _HelpStep(
               Icons.qr_code_scanner_rounded,
               'Valide resgates',
-              'Use o leitor de recompensas para conferir e registrar a utilização pelo cliente.',
+              'Valide pelo QR Code, digite o código da recompensa ou escolha o cliente e selecione uma recompensa pendente. Confira os dados e confirme a utilização.',
+            ),
+            _HelpStep(
+              Icons.history_rounded,
+              'Consulte o histórico',
+              'Na aba Histórico da tela Validar recompensa, consulte as recompensas utilizadas e filtre os registros por nome ou WhatsApp do cliente, nome da recompensa e período de utilização. Use Limpar filtros para voltar a ver todos os registros e Atualizar para buscar os dados mais recentes.',
             ),
             _HelpStep(
               Icons.insights_rounded,

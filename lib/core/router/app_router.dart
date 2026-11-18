@@ -194,6 +194,7 @@ final appRouter = GoRouter(
           location == '/company/validate-benefit' ||
           location == '/company/scan-benefit' ||
           location == '/company/dashboard' ||
+          location == '/company/rewards' ||
           location == '/company/reports' ||
           location == '/profile/editCompany' ||
           location == '/company/customers') {
@@ -377,6 +378,12 @@ final appRouter = GoRouter(
       path: '/company/dashboard',
       builder: (context, state) {
         return const CompanyDashboardPage();
+      },
+    ),
+    GoRoute(
+      path: '/company/rewards',
+      builder: (context, state) {
+        return const CompanyHomePage(showOnlyPromotions: true);
       },
     ),
 

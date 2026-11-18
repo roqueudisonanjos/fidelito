@@ -8,6 +8,7 @@ import '../../services/auth_service.dart';
 import '../../services/customer_service.dart';
 import '../../services/promotion_service.dart';
 import '../../services/support_service.dart';
+import '../../services/share_service.dart';
 import '../../services/notification_service.dart';
 import '../../widgets/help_tutorial_dialog.dart';
 
@@ -37,6 +38,8 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
 
   List<Promotion> promotions = [];
 
+  Set<String> redeemedPromotionIds = {};
+
   List<LoyaltyTransaction> transactions = [];
 
   String? error;
@@ -65,10 +68,9 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
         return AlertDialog(
           title: const Text('Resgatar recompensa?'),
           content: Text(
-            'Você vai utilizar '
-            '${promotion.pointsRequired} pontos '
-            'para resgatar:\n\n'
-            '${promotion.title}',
+            promotion.pointsRequired == 0
+                ? 'Você vai resgatar gratuitamente:\n\n${promotion.title}'
+                : 'Você vai utilizar ${promotion.pointsRequired} pontos para resgatar:\n\n${promotion.title}',
           ),
           actions: [
             TextButton(
@@ -105,10 +107,8 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
             title: const Text('Recompensa resgatada! 🎉'),
             content: Text(
               '${result['title']}\n\n'
-              'Pontos utilizados: '
-              '${result['points_spent']}\n\n'
-              'Novo saldo: '
-              '${result['new_balance']} pontos.',
+              'Pontos utilizados: ${result['points_spent']}\n\n'
+              'Novo saldo: ${result['new_balance']} pontos.',
             ),
             actions: [
               TextButton(
@@ -144,6 +144,7 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
         customerService.getPointsByCompany(),
         customerService.getPromotions(),
         customerService.getTransactions(),
+        promotionService.getMyRedeemedPromotionIds(),
       ]);
 
       final profile = results[0] as Map<String, dynamic>?;
@@ -153,6 +154,7 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
       final loadedPromotions = results[2] as List<Promotion>;
 
       final loadedTransactions = results[3] as List<LoyaltyTransaction>;
+      final loadedRedeemedPromotionIds = results[4] as Set<String>;
 
       if (!mounted) return;
 
@@ -165,6 +167,8 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
         promotions = loadedPromotions;
 
         transactions = loadedTransactions;
+
+        redeemedPromotionIds = loadedRedeemedPromotionIds;
 
         loading = false;
       });
@@ -202,6 +206,11 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
       appBar: AppBar(
         title: const Text('Fidelito'),
         actions: [
+          IconButton(
+            tooltip: 'Compartilhar Fidelito',
+            icon: const Icon(Icons.share_rounded),
+            onPressed: () => ShareService.shareApp(),
+          ),
           FutureBuilder<int>(
             future: _unreadNotificationsFuture,
             builder: (context, snapshot) {
@@ -440,7 +449,11 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
 
   Widget _buildPromotionCard(Promotion promotion) {
     final availablePoints = companyPoints[promotion.companyId] ?? 0;
-    final canRedeem = availablePoints >= promotion.pointsRequired;
+    final alreadyRedeemedFree =
+        promotion.pointsRequired == 0 &&
+        redeemedPromotionIds.contains(promotion.id);
+    final canRedeem =
+        !alreadyRedeemedFree && availablePoints >= promotion.pointsRequired;
 
     String rewardText;
 
@@ -527,6 +540,20 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
                     ),
                   ),
 
+                  IconButton(
+                    tooltip: 'Compartilhar recompensa',
+                    visualDensity: VisualDensity.compact,
+                    onPressed: () => ShareService.sharePromotion(
+                      companyName: promotion.companyName ?? 'Empresa',
+                      title: promotion.title,
+                      type: promotion.type,
+                      discountPercentage: promotion.discountPercentage?.toStringAsFixed(0),
+                      giftDescription: promotion.giftDescription,
+                      description: promotion.description,
+                      companyLogoUrl: promotion.companyLogoUrl,
+                    ),
+                    icon: const Icon(Icons.share_outlined),
+                  ),
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 10,
@@ -539,7 +566,7 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
                           : Colors.grey.withValues(alpha: .12),
                     ),
                     child: Text(
-                      '${promotion.pointsRequired} pts',
+                      promotion.pointsRequired == 0 ? 'Grátis' : '${promotion.pointsRequired} pts',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         color: canRedeem ? Colors.green : Colors.grey,
@@ -578,10 +605,18 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
               const SizedBox(height: 12),
 
               Text(
-                canRedeem
+                alreadyRedeemedFree
+                    ? 'Você já resgatou esta recompensa gratuita.'
+                    : canRedeem
                     ? 'Você já pode resgatar esta recompensa.'
                     : 'Faltam ${promotion.pointsRequired - availablePoints} pontos nesta empresa.',
-                style: TextStyle(color: canRedeem ? Colors.green : Colors.grey),
+                style: TextStyle(
+                  color: alreadyRedeemedFree
+                      ? Colors.grey
+                      : canRedeem
+                      ? Colors.green
+                      : Colors.grey,
+                ),
               ),
 
               const SizedBox(height: 14),
@@ -592,8 +627,20 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
                   onPressed: canRedeem
                       ? () => redeemPromotion(promotion)
                       : null,
+                  style: ElevatedButton.styleFrom(
+                    disabledBackgroundColor: alreadyRedeemedFree
+                        ? Colors.grey.shade400
+                        : null,
+                    disabledForegroundColor: alreadyRedeemedFree
+                        ? Colors.white
+                        : null,
+                  ),
                   child: Text(
-                    canRedeem ? 'Resgatar recompensa' : 'Pontos insuficientes',
+                    alreadyRedeemedFree
+                        ? 'Recompensa resgatada'
+                        : canRedeem
+                        ? 'Resgatar recompensa'
+                        : 'Pontos insuficientes',
                   ),
                 ),
               ),

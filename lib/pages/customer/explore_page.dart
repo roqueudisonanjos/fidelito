@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../services/location_service.dart';
 import '../../services/loyalty_program_service.dart';
 import '../../services/profile_service.dart';
+import '../../services/share_service.dart';
 
 class ExplorePage extends StatefulWidget {
   const ExplorePage({super.key});
@@ -149,164 +150,225 @@ class _ExplorePageState extends State<ExplorePage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Explorar empresas')),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-            child: Column(
-              children: [
-                if (_cityController.text.trim().isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.only(bottom: 10),
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        'Informe sua cidade ou permita o acesso à localização para ver empresas próximas.',
-                        style: TextStyle(color: Colors.grey, fontSize: 12),
+    final city = _cityController.text.trim();
+    final state = _stateController.text.trim();
+    final locationSummary = [city, state]
+        .where((value) => value.isNotEmpty)
+        .join(' - ');
+
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        appBar: AppBar(title: const Text('Explorar empresas')),
+        body: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+              child: Column(
+                children: [
+                  TextField(
+                    controller: _searchController,
+                    textInputAction: TextInputAction.search,
+                    decoration: InputDecoration(
+                      labelText: 'Empresa ou promoção',
+                      hintText: 'Digite o nome da empresa ou promoção',
+                      prefixIcon: const Icon(Icons.search),
+                      border: const OutlineInputBorder(),
+                      suffixIcon: IconButton(
+                        tooltip: 'Pesquisar',
+                        icon: const Icon(Icons.search),
+                        onPressed: _load,
                       ),
                     ),
+                    onSubmitted: (_) => _load(),
                   ),
-                TextField(
-                  controller: _cityController,
-                  textInputAction: TextInputAction.next,
-                  decoration: const InputDecoration(
-                    labelText: 'Cidade',
-                    hintText: 'Ex.: Tucuruí',
-                    prefixIcon: Icon(Icons.location_on_outlined),
-                    border: OutlineInputBorder(),
-                  ),
-                  onSubmitted: (_) => _load(),
-                ),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _stateController,
-                        textCapitalization: TextCapitalization.characters,
-                        maxLength: 2,
-                        decoration: const InputDecoration(
-                          labelText: 'UF',
-                          hintText: 'PA',
-                          counterText: '',
-                          prefixIcon: Icon(Icons.map_outlined),
-                          border: OutlineInputBorder(),
-                        ),
-                        onSubmitted: (_) => _load(),
+                  const SizedBox(height: 4),
+                  Theme(
+                    data: Theme.of(context).copyWith(
+                      dividerColor: Colors.transparent,
+                    ),
+                    child: ExpansionTile(
+                      tilePadding: EdgeInsets.zero,
+                      childrenPadding: const EdgeInsets.only(bottom: 8),
+                      leading: const Icon(Icons.filter_alt_outlined),
+                      title: const Text(
+                        'Filtrar por cidade e estado',
+                        style: TextStyle(fontWeight: FontWeight.w600),
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    IconButton.filledTonal(
-                      tooltip: 'Usar minha localização',
-                      onPressed: _gettingLocation ? null : _fillLocation,
-                      icon: _gettingLocation
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.my_location),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: _searchController,
-                  textInputAction: TextInputAction.search,
-                  decoration: InputDecoration(
-                    labelText: 'Empresa ou promoção',
-                    prefixIcon: const Icon(Icons.search),
-                    border: const OutlineInputBorder(),
-                    suffixIcon: IconButton(
-                      icon: const Icon(Icons.search),
-                      onPressed: _load,
-                    ),
-                  ),
-                  onSubmitted: (_) => _load(),
-                ),
-                const SizedBox(height: 8),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton.icon(
-                    onPressed: _load,
-                    icon: const Icon(Icons.filter_alt_outlined),
-                    label: const Text('Buscar'),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Expanded(
-            child: _loading
-                ? const Center(child: CircularProgressIndicator())
-                : _error != null
-                ? Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Text(_error!, textAlign: TextAlign.center),
-                    ),
-                  )
-                : RefreshIndicator(
-                    onRefresh: _load,
-                    child: ListView(
-                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+                      subtitle: Text(
+                        locationSummary.isEmpty
+                            ? 'Opcional — pesquisar em qualquer localização'
+                            : locationSummary,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      initiallyExpanded: false,
                       children: [
-                        _sectionTitle(
-                          'Empresas',
-                          Icons.storefront_outlined,
-                          _companies.length,
-                        ),
-                        if (_companies.isEmpty)
+                        if (city.isEmpty)
                           const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 14),
-                            child: Text(
-                              'Nenhuma empresa encontrada nesta localização.',
+                            padding: EdgeInsets.only(bottom: 10),
+                            child: Align(
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                'Informe sua cidade ou use sua localização para encontrar empresas próximas.',
+                                style: TextStyle(
+                                  color: Colors.grey,
+                                  fontSize: 12,
+                                ),
+                              ),
                             ),
-                          )
-                        else
-                          ..._companies.map(_companyCard),
-                        const SizedBox(height: 18),
-                        _sectionTitle(
-                          'Promoções e descontos',
-                          Icons.local_offer_outlined,
-                          _promotions.length,
+                          ),
+                        TextField(
+                          controller: _cityController,
+                          textInputAction: TextInputAction.next,
+                          decoration: const InputDecoration(
+                            labelText: 'Cidade',
+                            hintText: 'Ex.: Tucuruí',
+                            prefixIcon: Icon(Icons.location_on_outlined),
+                            border: OutlineInputBorder(),
+                          ),
+                          onSubmitted: (_) => _load(),
                         ),
-                        if (_promotions.isEmpty)
-                          const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 14),
-                            child: Text(
-                              'Nenhuma promoção disponível nesta localização no momento.',
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextField(
+                                controller: _stateController,
+                                textCapitalization:
+                                    TextCapitalization.characters,
+                                maxLength: 2,
+                                decoration: const InputDecoration(
+                                  labelText: 'UF',
+                                  hintText: 'PA',
+                                  counterText: '',
+                                  prefixIcon: Icon(Icons.map_outlined),
+                                  border: OutlineInputBorder(),
+                                ),
+                                onSubmitted: (_) => _load(),
+                              ),
                             ),
-                          )
-                        else
-                          ..._promotions.map(_promotionCard),
+                            const SizedBox(width: 8),
+                            IconButton.filledTonal(
+                              tooltip: 'Usar minha localização',
+                              onPressed: _gettingLocation
+                                  ? null
+                                  : _fillLocation,
+                              icon: _gettingLocation
+                                  ? const SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                  : const Icon(Icons.my_location),
+                            ),
+                          ],
+                        ),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton.icon(
+                            onPressed: _load,
+                            icon: const Icon(Icons.search),
+                            label: const Text('Aplicar filtros'),
+                          ),
+                        ),
                       ],
                     ),
                   ),
-          ),
+                ],
+              ),
+            ),
+            const TabBar(
+              tabs: [
+                Tab(icon: Icon(Icons.storefront_outlined), text: 'Empresas'),
+                Tab(
+                  icon: Icon(Icons.local_offer_outlined),
+                  text: 'Promoções e descontos',
+                ),
+              ],
+              labelPadding: EdgeInsets.symmetric(horizontal: 8),
+              isScrollable: false,
+            ),
+            Expanded(
+              child: TabBarView(
+                children: [
+                  _buildCompanyResults(),
+                  _buildPromotionResults(),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCompanyResults() {
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_error != null) {
+      return _buildRefreshableMessage(_error!);
+    }
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+        children: [
+          if (_companies.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 24),
+              child: Center(
+                child: Text('Nenhuma empresa encontrada nesta localização.'),
+              ),
+            )
+          else
+            ..._companies.map(_companyCard),
         ],
       ),
     );
   }
 
-  Widget _sectionTitle(String title, IconData icon, int count) => Padding(
-    padding: const EdgeInsets.only(bottom: 12),
-    child: Row(
-      children: [
-        Icon(icon),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            title,
-            style: const TextStyle(fontSize: 19, fontWeight: FontWeight.bold),
-          ),
-        ),
-        Text('$count'),
-      ],
-    ),
-  );
+  Widget _buildPromotionResults() {
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_error != null) {
+      return _buildRefreshableMessage(_error!);
+    }
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+        children: [
+          if (_promotions.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 24),
+              child: Center(
+                child: Text(
+                  'Nenhuma promoção disponível nesta localização no momento.',
+                ),
+              ),
+            )
+          else
+            ..._promotions.map(_promotionCard),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRefreshableMessage(String message) {
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(24),
+        children: [Text(message, textAlign: TextAlign.center)],
+      ),
+    );
+  }
 
   Widget _companyCard(Map<String, dynamic> company) {
     final city = [
@@ -436,6 +498,20 @@ class _ExplorePageState extends State<ExplorePage> {
                     ),
                   ),
                 ),
+                IconButton(
+                  tooltip: 'Compartilhar recompensa',
+                  visualDensity: VisualDensity.compact,
+                  onPressed: () => ShareService.sharePromotion(
+                    companyName: company['name']?.toString() ?? 'Empresa',
+                    title: promotion['title']?.toString() ?? 'Recompensa',
+                    type: type ?? '',
+                    discountPercentage: discount?.toString(),
+                    giftDescription: promotion['gift_description']?.toString(),
+                    description: promotion['description']?.toString(),
+                    companyLogoUrl: company['logo_url']?.toString(),
+                  ),
+                  icon: const Icon(Icons.share_outlined),
+                ),
               ],
             ),
             const SizedBox(height: 8),
@@ -458,7 +534,9 @@ class _ExplorePageState extends State<ExplorePage> {
               style: const TextStyle(color: Colors.grey),
             ),
             Text(
-              'Resgate: ${promotion['points_required'] ?? 0} pontos',
+              (promotion['points_required'] as num?)?.toInt() == 0
+                  ? 'Resgate gratuito • sem pontos'
+                  : 'Resgate: ${promotion['points_required'] ?? 0} pontos',
               style: const TextStyle(fontSize: 12, color: Colors.grey),
             ),
             const SizedBox(height: 10),

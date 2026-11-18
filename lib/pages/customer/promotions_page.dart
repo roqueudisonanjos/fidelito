@@ -21,6 +21,8 @@ class _PromotionsPageState extends State<PromotionsPage> {
 
   List<Map<String, dynamic>> _promotions = [];
 
+  Set<String> _redeemedPromotionIds = {};
+
   int _points = 0;
 
   @override
@@ -57,9 +59,12 @@ class _PromotionsPageState extends State<PromotionsPage> {
         );
       }
 
-      final promotions = await _service.getAvailablePromotions(
-        widget.companyId,
-      );
+      final results = await Future.wait<dynamic>([
+        _service.getAvailablePromotions(widget.companyId),
+        _service.getMyRedeemedPromotionIds(companyId: widget.companyId),
+      ]);
+      final promotions = results[0] as List<Map<String, dynamic>>;
+      final redeemedPromotionIds = results[1] as Set<String>;
 
       if (!mounted) return;
 
@@ -67,6 +72,7 @@ class _PromotionsPageState extends State<PromotionsPage> {
         _points = account['points'] ?? 0;
 
         _promotions = promotions;
+        _redeemedPromotionIds = redeemedPromotionIds;
 
         _loading = false;
       });
@@ -97,9 +103,9 @@ class _PromotionsPageState extends State<PromotionsPage> {
         return AlertDialog(
           title: const Text('Confirmar resgate'),
           content: Text(
-            'Você deseja trocar '
-            '$pointsRequired pontos por '
-            '"${promotion['title']}"?',
+            pointsRequired == 0
+                ? 'Você deseja resgatar gratuitamente "${promotion['title']}"?'
+                : 'Você deseja trocar $pointsRequired pontos por "${promotion['title']}"?',
           ),
           actions: [
             TextButton(
@@ -135,10 +141,8 @@ class _PromotionsPageState extends State<PromotionsPage> {
             title: const Text('Resgate realizado! 🎉'),
             content: Text(
               '${result['title']}\n\n'
-              'Pontos utilizados: '
-              '${result['points_spent']}\n\n'
-              'Novo saldo: '
-              '${result['new_balance']} pontos.',
+              'Pontos utilizados: ${result['points_spent']}\n\n'
+              'Novo saldo: ${result['new_balance']} pontos.',
             ),
             actions: [
               TextButton(
@@ -195,6 +199,11 @@ class _PromotionsPageState extends State<PromotionsPage> {
                         final description = promotion['description'];
 
                         final pointsRequired = promotion['points_required'];
+                        final alreadyRedeemedFree =
+                            pointsRequired == 0 &&
+                            _redeemedPromotionIds.contains(promotion['id'].toString());
+                        final canRedeem =
+                            !alreadyRedeemedFree && _points >= pointsRequired;
 
                         final type = promotion['type'];
 
@@ -239,7 +248,9 @@ class _PromotionsPageState extends State<PromotionsPage> {
                                 const SizedBox(height: 12),
 
                                 Text(
-                                  '$pointsRequired pontos',
+                                  pointsRequired == 0
+                                      ? 'Grátis • sem pontos'
+                                      : '$pointsRequired pontos',
                                   style: const TextStyle(
                                     fontWeight: FontWeight.bold,
                                   ),
@@ -250,10 +261,22 @@ class _PromotionsPageState extends State<PromotionsPage> {
                                 SizedBox(
                                   width: double.infinity,
                                   child: ElevatedButton(
-                                    onPressed: _points >= pointsRequired
+                                    onPressed: canRedeem
                                         ? () => _redeem(promotion)
                                         : null,
-                                    child: const Text('Resgatar'),
+                                    style: ElevatedButton.styleFrom(
+                                      disabledBackgroundColor: alreadyRedeemedFree
+                                          ? Colors.grey.shade400
+                                          : null,
+                                      disabledForegroundColor: alreadyRedeemedFree
+                                          ? Colors.white
+                                          : null,
+                                    ),
+                                    child: Text(
+                                      alreadyRedeemedFree
+                                          ? 'Recompensa resgatada'
+                                          : 'Resgatar',
+                                    ),
                                   ),
                                 ),
                               ],

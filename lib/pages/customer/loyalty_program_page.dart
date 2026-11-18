@@ -17,6 +17,7 @@ class _LoyaltyProgramPageState extends State<LoyaltyProgramPage> {
   int _points = 0;
   List<Map<String, dynamic>> _transactions = [];
   List<Map<String, dynamic>> _promotions = [];
+  Set<String> _redeemedPromotionIds = {};
   String? _error;
   String get _companyId => widget.company['id'].toString();
 
@@ -36,20 +37,23 @@ class _LoyaltyProgramPageState extends State<LoyaltyProgramPage> {
       final own = account
           .where((a) => a['company_id'].toString() == _companyId)
           .toList();
-      if (own.isEmpty)
+      if (own.isEmpty) {
         throw Exception('Você ainda não participa desta fidelidade.');
+      }
       final companyIsActive = widget.company['active'] == true;
-      final results = await Future.wait<List<Map<String, dynamic>>>([
+      final results = await Future.wait<dynamic>([
         _service.getCompanyTransactions(_companyId),
         companyIsActive
             ? _service.getCompanyPromotions(_companyId)
             : Future.value(<Map<String, dynamic>>[]),
+        _promotionService.getMyRedeemedPromotionIds(companyId: _companyId),
       ]);
       if (!mounted) return;
       setState(() {
         _points = (own.first['points'] as num?)?.toInt() ?? 0;
         _transactions = results[0];
-        _promotions = results[1];
+        _promotions = results[1] as List<Map<String, dynamic>>;
+        _redeemedPromotionIds = results[2] as Set<String>;
         _loading = false;
       });
     } catch (e) {
@@ -112,7 +116,9 @@ class _LoyaltyProgramPageState extends State<LoyaltyProgramPage> {
       builder: (ctx) => AlertDialog(
         title: const Text('Confirmar resgate'),
         content: Text(
-          'Trocar $requiredPoints pontos por "${promotion['title']}"?',
+          requiredPoints == 0
+              ? 'Resgatar gratuitamente "${promotion['title']}"?'
+              : 'Trocar $requiredPoints pontos por "${promotion['title']}"?',
         ),
         actions: [
           TextButton(
@@ -216,7 +222,7 @@ class _LoyaltyProgramPageState extends State<LoyaltyProgramPage> {
                           '/customer/company-details',
                           extra: <String, dynamic>{...company, 'joined': true},
                         );
-                        if (!mounted) return;
+                        if (!context.mounted) return;
                         if (left == true) context.pop(true);
                       },
                       icon: const Icon(Icons.storefront_outlined),
@@ -274,6 +280,10 @@ class _LoyaltyProgramPageState extends State<LoyaltyProgramPage> {
                     ),
                   ..._promotions.take(4).map((p) {
                     final cost = (p['points_required'] as num?)?.toInt() ?? 0;
+                    final alreadyRedeemedFree =
+                        cost == 0 &&
+                        _redeemedPromotionIds.contains(p['id'].toString());
+                    final canRedeem = !alreadyRedeemedFree && _points >= cost;
                     final reward = p['type'] == 'discount'
                         ? '${p['discount_percentage'] ?? ''}% de desconto'
                         : (p['gift_description'] ?? 'Brinde').toString();
@@ -305,14 +315,24 @@ class _LoyaltyProgramPageState extends State<LoyaltyProgramPage> {
                             if ((p['description'] ?? '').toString().isNotEmpty)
                               Text(p['description'].toString()),
                             const SizedBox(height: 8),
-                            Text('$cost pontos'),
+                            Text(cost == 0 ? 'Grátis • sem pontos' : '$cost pontos'),
                             Align(
                               alignment: Alignment.centerRight,
                               child: FilledButton.tonal(
-                                onPressed: _points >= cost
-                                    ? () => _redeem(p)
-                                    : null,
-                                child: const Text('Resgatar'),
+                                onPressed: canRedeem ? () => _redeem(p) : null,
+                                style: FilledButton.styleFrom(
+                                  disabledBackgroundColor: alreadyRedeemedFree
+                                      ? Colors.grey.shade400
+                                      : null,
+                                  disabledForegroundColor: alreadyRedeemedFree
+                                      ? Colors.white
+                                      : null,
+                                ),
+                                child: Text(
+                                  alreadyRedeemedFree
+                                      ? 'Recompensa resgatada'
+                                      : 'Resgatar',
+                                ),
                               ),
                             ),
                           ],

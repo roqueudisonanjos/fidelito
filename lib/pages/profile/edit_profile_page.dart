@@ -90,10 +90,11 @@ class _EditProfilePageState extends State<EditProfilePage> {
       );
       if (url != null && mounted) setState(() => _avatarUrl = url);
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
         );
+      }
     } finally {
       if (mounted) setState(() => _uploadingPhoto = false);
     }

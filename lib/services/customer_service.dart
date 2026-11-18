@@ -102,6 +102,7 @@ class CustomerService {
         )
         .inFilter('company_id', companyIds)
         .eq('active', true)
+        .isFilter('deleted_at', null)
         .order('points_required');
 
     final now = DateTime.now().toUtc();

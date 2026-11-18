@@ -441,8 +441,9 @@ class _CompanyCustomersPageState extends State<CompanyCustomersPage> {
                 ),
                 validator: (value) {
                   final points = int.tryParse(value ?? '');
-                  if (points == null || points <= 0 || points > 10000)
+                  if (points == null || points <= 0 || points > 10000) {
                     return 'Informe um valor entre 1 e 10.000.';
+                  }
                   return null;
                 },
               ),
@@ -465,8 +466,9 @@ class _CompanyCustomersPageState extends State<CompanyCustomersPage> {
           ),
           FilledButton(
             onPressed: () {
-              if (formKey.currentState!.validate())
+              if (formKey.currentState!.validate()) {
                 Navigator.pop(dialogContext, true);
+              }
             },
             child: const Text('Adicionar'),
           ),

@@ -76,10 +76,11 @@ class _DeleteAccountSectionState extends State<DeleteAccountSection> {
     passwordController.dispose();
     if (password == null) return;
     if (password.isEmpty) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Informe sua senha atual.')),
         );
+      }
       return;
     }
 

@@ -433,8 +433,9 @@ class _AdminHomePageState extends State<AdminHomePage> {
   }
 
   Widget _buildCustomerList() {
-    if (_customers.isEmpty)
+    if (_customers.isEmpty) {
       return const _EmptyState(message: 'Nenhum cliente encontrado.');
+    }
     return ListView.separated(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
       itemCount: _customers.length,
@@ -546,8 +547,9 @@ class _AdminHomePageState extends State<AdminHomePage> {
   }
 
   Widget _buildCompanyList() {
-    if (_companies.isEmpty)
+    if (_companies.isEmpty) {
       return const _EmptyState(message: 'Nenhuma empresa encontrada.');
+    }
     return ListView.separated(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
       itemCount: _companies.length,

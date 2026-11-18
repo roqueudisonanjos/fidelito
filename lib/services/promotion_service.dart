@@ -16,6 +16,7 @@ class PromotionService {
           .select()
           .eq('company_id', companyId)
           .eq('active', true)
+          .isFilter('deleted_at', null)
           .order('points_required');
 
       final now = DateTime.now().toUtc();
@@ -32,6 +33,32 @@ class PromotionService {
     } catch (e) {
       throw Exception('Não foi possível carregar as promoções.');
     }
+  }
+
+  /// IDs das promoções que o cliente autenticado já resgatou.
+  /// Não filtra por status: recompensas gratuitas continuam bloqueadas
+  /// mesmo depois de utilizadas ou canceladas.
+  Future<Set<String>> getMyRedeemedPromotionIds({String? companyId}) async {
+    final user = _supabase.auth.currentUser;
+    if (user == null) {
+      throw Exception('Usuário não autenticado.');
+    }
+
+    var query = _supabase
+        .from('promotion_redemptions')
+        .select('promotion_id')
+        .eq('customer_id', user.id);
+
+    if (companyId != null && companyId.isNotEmpty) {
+      query = query.eq('company_id', companyId);
+    }
+
+    final response = await query;
+    return response
+        .map((row) => row['promotion_id']?.toString())
+        .whereType<String>()
+        .where((id) => id.isNotEmpty)
+        .toSet();
   }
 
   // ============================================================
@@ -52,6 +79,7 @@ class PromotionService {
           .from('promotions')
           .select()
           .eq('company_id', companyId)
+          .isFilter('deleted_at', null)
           .order('created_at', ascending: false);
 
       return List<Map<String, dynamic>>.from(response);
@@ -110,8 +138,8 @@ class PromotionService {
       throw Exception('Tipo de recompensa inválido.');
     }
 
-    if (pointsRequired <= 0) {
-      throw Exception('A quantidade de pontos deve ser maior que zero.');
+    if (pointsRequired < 0) {
+      throw Exception('A quantidade de pontos não pode ser negativa.');
     }
 
     if (endsAt.isBefore(startsAt) || endsAt.isAtSameMomentAs(startsAt)) {
@@ -198,8 +226,8 @@ class PromotionService {
       throw Exception('Tipo de recompensa inválido.');
     }
 
-    if (pointsRequired <= 0) {
-      throw Exception('A quantidade de pontos deve ser maior que zero.');
+    if (pointsRequired < 0) {
+      throw Exception('A quantidade de pontos não pode ser negativa.');
     }
 
     if (endsAt.isBefore(startsAt) || endsAt.isAtSameMomentAs(startsAt)) {
@@ -361,11 +389,8 @@ class PromotionService {
   // ============================================================
   // EXCLUIR PROMOÇÃO
   //
-  // Atenção:
-  // Esta operação realmente remove o registro.
-  //
-  // Para promoções que já foram resgatadas, o CANCELAR é mais
-  // seguro porque mantém o histórico.
+  // A exclusão é lógica: a função no banco marca a recompensa como
+  // inativa e preenchida em deleted_at, preservando o histórico de resgates.
   // ============================================================
 
   Future<void> deletePromotion(String promotionId) async {
@@ -376,23 +401,14 @@ class PromotionService {
         throw Exception('Usuário não autenticado.');
       }
 
-      final company = await _supabase
-          .from('companies')
-          .select('id')
-          .eq('owner_id', user.id)
-          .maybeSingle();
+      final response = await _supabase.rpc(
+        'delete_promotion',
+        params: {'p_promotion_id': promotionId},
+      );
 
-      if (company == null) {
-        throw Exception('Empresa não encontrada.');
+      if (response is Map && response['success'] != true) {
+        throw Exception('Não foi possível excluir a recompensa.');
       }
-
-      final companyId = company['id'];
-
-      await _supabase
-          .from('promotions')
-          .delete()
-          .eq('id', promotionId)
-          .eq('company_id', companyId);
     } catch (e) {
       throw Exception(e.toString().replaceFirst('Exception: ', ''));
     }

@@ -111,10 +111,11 @@ class _NotificationsPageState extends State<NotificationsPage> {
                     onTap: unread
                         ? () async {
                             await _service.markAsRead(item['id'].toString());
-                            if (mounted)
+                            if (mounted) {
                               setState(
                                 () => _future = _service.getNotifications(),
                               );
+                            }
                           }
                         : null,
                   ),

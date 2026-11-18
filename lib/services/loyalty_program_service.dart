@@ -59,6 +59,7 @@ class LoyaltyProgramService {
           companies!inner(id, name, city, state, logo_url, active)
         ''')
         .eq('active', true)
+        .isFilter('deleted_at', null)
         .eq('companies.active', true)
         .order('created_at', ascending: false);
 
@@ -184,6 +185,7 @@ class LoyaltyProgramService {
         )
         .eq('company_id', companyId)
         .eq('active', true)
+        .isFilter('deleted_at', null)
         .order('points_required');
 
     final now = DateTime.now().toUtc();

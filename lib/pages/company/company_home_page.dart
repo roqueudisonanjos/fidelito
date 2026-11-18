@@ -8,10 +8,13 @@ import '../../services/company_dashboard_service.dart';
 import '../../services/promotion_service.dart';
 import '../../services/support_service.dart';
 import '../../services/image_upload_service.dart';
+import '../../services/share_service.dart';
 import '../../widgets/help_tutorial_dialog.dart';
 
 class CompanyHomePage extends StatefulWidget {
-  const CompanyHomePage({super.key});
+  final bool showOnlyPromotions;
+
+  const CompanyHomePage({super.key, this.showOnlyPromotions = false});
 
   @override
   State<CompanyHomePage> createState() => _CompanyHomePageState();
@@ -184,12 +187,16 @@ class _CompanyHomePageState extends State<CompanyHomePage> {
     final giftController = TextEditingController();
 
     String type = promotion?['type']?.toString() ?? 'discount';
+    bool freeReward =
+        (promotion?['points_required'] as num?)?.toInt() == 0;
     String? imageUrl = promotion?['image_url']?.toString();
     bool uploadingImage = false;
 
     titleController.text = promotion?['title']?.toString() ?? '';
     descriptionController.text = promotion?['description']?.toString() ?? '';
-    pointsController.text = promotion?['points_required']?.toString() ?? '';
+    pointsController.text = freeReward
+        ? '0'
+        : (promotion?['points_required']?.toString() ?? '');
     discountController.text =
         promotion?['discount_percentage']?.toString() ?? '';
     giftController.text = promotion?['gift_description']?.toString() ?? '';
@@ -279,10 +286,11 @@ class _CompanyHomePageState extends State<CompanyHomePage> {
                                           folder: 'promotions',
                                           filePrefix: 'benefit',
                                         );
-                                    if (uploaded != null)
+                                    if (uploaded != null) {
                                       setDialogState(() => imageUrl = uploaded);
+                                    }
                                   } catch (e) {
-                                    if (context.mounted)
+                                    if (context.mounted) {
                                       ScaffoldMessenger.of(
                                         context,
                                       ).showSnackBar(
@@ -295,6 +303,7 @@ class _CompanyHomePageState extends State<CompanyHomePage> {
                                           ),
                                         ),
                                       );
+                                    }
                                   } finally {
                                     setDialogState(
                                       () => uploadingImage = false,
@@ -351,22 +360,42 @@ class _CompanyHomePageState extends State<CompanyHomePage> {
                         const SizedBox(height: 16),
 
                         // ==================================================
-                        // PONTOS
+                        // RESGATE GRATUITO / PONTOS
                         // ==================================================
+                        SwitchListTile.adaptive(
+                          contentPadding: EdgeInsets.zero,
+                          value: freeReward,
+                          title: const Text('Recompensa gratuita (sem pontos)'),
+                          subtitle: const Text(
+                            'Ideal para ofertas de primeira visita ou primeiro serviço.',
+                          ),
+                          onChanged: (value) {
+                            setDialogState(() {
+                              freeReward = value;
+                              pointsController.text = value ? '0' : '10';
+                            });
+                          },
+                        ),
+                        const SizedBox(height: 8),
                         TextFormField(
                           controller: pointsController,
+                          enabled: !freeReward,
                           keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(
-                            labelText: 'Pontos necessários',
-                            border: OutlineInputBorder(),
+                          decoration: InputDecoration(
+                            labelText: freeReward
+                                ? 'Resgate sem custo em pontos'
+                                : 'Pontos necessários',
+                            helperText: freeReward
+                                ? 'O cliente poderá resgatar sem descontar pontos.'
+                                : 'Quantidade de pontos para resgatar a recompensa.',
+                            border: const OutlineInputBorder(),
                           ),
                           validator: (value) {
+                            if (freeReward) return null;
                             final points = int.tryParse(value ?? '');
-
                             if (points == null || points <= 0) {
                               return 'Informe uma quantidade válida.';
                             }
-
                             return null;
                           },
                         ),
@@ -516,9 +545,9 @@ class _CompanyHomePageState extends State<CompanyHomePage> {
                           final messenger = ScaffoldMessenger.of(context);
 
                           try {
-                            final points = int.parse(
-                              pointsController.text.trim(),
-                            );
+                            final points = freeReward
+                                ? 0
+                                : int.parse(pointsController.text.trim());
 
                             double? discount;
 
@@ -827,7 +856,9 @@ class _CompanyHomePageState extends State<CompanyHomePage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    _companyData?.companyName ?? 'Painel da empresa',
+                    widget.showOnlyPromotions
+                        ? 'Minhas recompensas'
+                        : (_companyData?.companyName ?? 'Painel da empresa'),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
@@ -839,7 +870,9 @@ class _CompanyHomePageState extends State<CompanyHomePage> {
                   const SizedBox(height: 2),
 
                   Text(
-                    'Painel administrativo',
+                    widget.showOnlyPromotions
+                        ? 'Gerencie suas recompensas'
+                        : 'Painel administrativo',
                     style: TextStyle(
                       fontSize: 12,
                       color: colorScheme.onSurfaceVariant,
@@ -852,6 +885,14 @@ class _CompanyHomePageState extends State<CompanyHomePage> {
         ),
 
         actions: [
+          IconButton(
+            tooltip: 'Compartilhar Fidelito',
+            onPressed: () => ShareService.shareCompanyClub(
+              companyName: _companyData?.companyName ?? 'nossa empresa',
+              companyLogoUrl: _companyData?.companyLogoUrl,
+            ),
+            icon: const Icon(Icons.share_rounded),
+          ),
           IconButton(
             tooltip: 'Suporte ApoloApps',
             onPressed: () => SupportService.openWhatsApp(context),
@@ -916,6 +957,10 @@ class _CompanyHomePageState extends State<CompanyHomePage> {
       );
     }
 
+    if (widget.showOnlyPromotions) {
+      return _buildPromotionsOnlyBody();
+    }
+
     final colorScheme = Theme.of(context).colorScheme;
 
     return RefreshIndicator(
@@ -938,72 +983,110 @@ class _CompanyHomePageState extends State<CompanyHomePage> {
             const SizedBox(height: 28),
 
             // ==================================================
-            // AÇÕES RÁPIDAS
+            // OPERAÇÕES COM QR CODE
             // ==================================================
             const _SectionTitle(
-              title: 'Ações rápidas',
-              subtitle: 'Acesse as principais funções',
+              title: 'Com QR Code',
+              subtitle: 'Operações rápidas usando a câmera',
             ),
 
             const SizedBox(height: 14),
 
-            // ==================================================
-            // ESCANEAR BENEFÍCIO
-            // ==================================================
             _ScanBenefitCard(
               onTap: () {
                 context.push('/company/scan-benefit');
               },
             ),
 
-            const SizedBox(height: 14),
+            const SizedBox(height: 12),
+
+            SizedBox(
+              width: double.infinity,
+              child: _ActionCard(
+                icon: Icons.qr_code_2_rounded,
+                title: 'Gerar QR Code',
+                subtitle: 'Registrar pontos do cliente',
+                onTap: () {
+                  context.push('/company/generate-qr');
+                },
+              ),
+            ),
+
+            const SizedBox(height: 26),
 
             // ==================================================
-            // QR + DASHBOARD
+            // OPERAÇÕES MANUAIS
             // ==================================================
+            const _SectionTitle(
+              title: 'Operações manuais',
+              subtitle: 'Faça as operações sem precisar escanear',
+            ),
+
+            const SizedBox(height: 14),
+
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
                   child: _ActionCard(
-                    icon: Icons.qr_code_2_rounded,
-                    title: 'Gerar QR Code',
-                    subtitle: 'Criar código',
+                    icon: Icons.add_circle_outline_rounded,
+                    title: 'Adicionar pontos',
+                    subtitle: 'Escolher um cliente',
                     onTap: () {
-                      context.push('/company/generate-qr');
+                      context.push('/company/customers');
                     },
                   ),
                 ),
-
-                const SizedBox(width: 14),
-
+                const SizedBox(width: 12),
                 Expanded(
                   child: _ActionCard(
-                    icon: Icons.dashboard_rounded,
-                    title: 'Dashboard',
-                    subtitle: 'Ver resultados',
+                    icon: Icons.fact_check_outlined,
+                    title: 'Validar recompensa',
+                    subtitle: 'Informar o código',
                     onTap: () {
-                      context.push('/company/dashboard');
+                      context.push('/company/validate-benefit');
                     },
                   ),
                 ),
               ],
             ),
 
+            const SizedBox(height: 26),
+
+            // ==================================================
+            // GESTÃO
+            // ==================================================
+            const _SectionTitle(
+              title: 'Gestão',
+              subtitle: 'Acompanhe o desempenho da empresa',
+            ),
+
             const SizedBox(height: 14),
 
-            // --------------------------------------------------
-            // ADICIONAR PONTOS MANUALMENTE
-            // --------------------------------------------------
-            SizedBox(
-              width: double.infinity,
-              child: _ActionCard(
-                icon: Icons.add_circle_outline_rounded,
-                title: 'Adicionar pontos manualmente',
-                subtitle: 'Escolher um cliente',
-                onTap: () {
-                  context.push('/company/customers');
-                },
-              ),
+            Row(
+              children: [
+                Expanded(
+                  child: _ActionCard(
+                    icon: Icons.dashboard_rounded,
+                    title: 'Dashboard',
+                    subtitle: 'Ver resultados e indicadores',
+                    onTap: () {
+                      context.push('/company/dashboard');
+                    },
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _ActionCard(
+                    icon: Icons.card_giftcard_rounded,
+                    title: 'Minhas recompensas',
+                    subtitle: 'Criar ou alterar recompensas',
+                    onTap: () {
+                      context.push('/company/rewards');
+                    },
+                  ),
+                ),
+              ],
             ),
 
             const SizedBox(height: 16),
@@ -1109,6 +1192,60 @@ class _CompanyHomePageState extends State<CompanyHomePage> {
             // ==================================================
             // LISTA DE BENEFÍCIOS
             // ==================================================
+            if (_promotions.isEmpty)
+              _buildEmpty()
+            else
+              ..._promotions.map(_buildPromotionCard),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // TELA EXCLUSIVA DE RECOMPENSAS
+  // Reutiliza os mesmos cards e ações da tela principal.
+  // ============================================================
+
+  Widget _buildPromotionsOnlyBody() {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return RefreshIndicator(
+      onRefresh: _loadData,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(20, 18, 20, 120),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Expanded(
+                  child: _SectionTitle(
+                    title: 'Minhas recompensas',
+                    subtitle: 'Edite, cancele ou exclua suas recompensas',
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 11,
+                    vertical: 7,
+                  ),
+                  decoration: BoxDecoration(
+                    color: colorScheme.primary.withValues(alpha: 0.10),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    '${_promotions.length}',
+                    style: TextStyle(
+                      color: colorScheme.primary,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
             if (_promotions.isEmpty)
               _buildEmpty()
             else
@@ -1321,6 +1458,20 @@ class _CompanyHomePageState extends State<CompanyHomePage> {
 
               const SizedBox(width: 8),
 
+              IconButton(
+                tooltip: 'Compartilhar recompensa',
+                visualDensity: VisualDensity.compact,
+                onPressed: () => ShareService.sharePromotion(
+                  companyName: _companyData?.companyName ?? 'Empresa',
+                  title: title.toString(),
+                  type: type?.toString() ?? '',
+                  discountPercentage: discount?.toString(),
+                  giftDescription: gift?.toString(),
+                  description: description?.toString(),
+                  companyLogoUrl: _companyData?.companyLogoUrl,
+                ),
+                icon: const Icon(Icons.share_outlined),
+              ),
               _buildStatusChip(status, statusColor, statusIcon),
             ],
           ),
@@ -1351,7 +1502,7 @@ class _CompanyHomePageState extends State<CompanyHomePage> {
               const SizedBox(width: 6),
 
               Text(
-                '$points pontos necessários',
+                points == 0 ? 'Sem pontos (recompensa gratuita)' : '$points pontos necessários',
                 style: const TextStyle(fontWeight: FontWeight.w600),
               ),
             ],

@@ -147,10 +147,11 @@ class _CompanySetupPageState extends State<CompanySetupPage> {
       );
       if (url != null && mounted) setState(() => _logoUrl = url);
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
         );
+      }
     } finally {
       if (mounted) setState(() => _uploadingLogo = false);
     }

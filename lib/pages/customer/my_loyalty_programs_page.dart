@@ -102,12 +102,50 @@ class _MyLoyaltyProgramsPageState extends State<MyLoyaltyProgramsPage> {
                       style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
                     subtitle: Padding(
-                      padding: const EdgeInsets.only(top: 6),
-                      child: Text(
-                        '${row['points'] ?? 0} pontos${location.isEmpty ? '' : '\n$location'}',
+                      padding: const EdgeInsets.only(top: 10),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context)
+                                  .colorScheme.primaryContainer,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.stars_rounded,
+                                  size: 20,
+                                  color: Theme.of(context)
+                                      .colorScheme.onPrimaryContainer,
+                                ),
+                                const SizedBox(width: 7),
+                                Text(
+                                  '${row['points'] ?? 0} pontos',
+                                  style: TextStyle(
+                                    fontSize: 17,
+                                    fontWeight: FontWeight.bold,
+                                    color: Theme.of(context)
+                                        .colorScheme.onPrimaryContainer,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          if (location.isNotEmpty) ...[
+                            const SizedBox(height: 6),
+                            Text(location),
+                          ],
+                        ],
                       ),
                     ),
-                    isThreeLine: location.isNotEmpty,
+                    isThreeLine: true,
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () async {
                       final left = await context.push<bool>(

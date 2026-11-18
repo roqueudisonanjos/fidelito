@@ -142,7 +142,8 @@ class DashboardService {
           'points_required, discount_percentage, '
           'gift_description, active, starts_at, ends_at',
         )
-        .eq('company_id', companyId);
+        .eq('company_id', companyId)
+        .isFilter('deleted_at', null);
 
     final promotions = List<Map<String, dynamic>>.from(promotionsResponse);
 
@@ -430,7 +431,8 @@ class DashboardService {
     final promotions = await _supabase
         .from('promotions')
         .select('id, title, active')
-        .eq('company_id', companyId);
+        .eq('company_id', companyId)
+        .isFilter('deleted_at', null);
 
     // ----------------------------------------------------------
     // CONTAGEM DE RESGATES POR PROMOÇÃO

@@ -82,8 +82,9 @@ class ReportService {
           customerNames[customerId] = name.toString();
         }
         final avatar = profile['avatar_url']?.toString();
-        if (avatar != null && avatar.isNotEmpty)
+        if (avatar != null && avatar.isNotEmpty) {
           customerAvatars[customerId] = avatar;
+        }
       }
     }
 
