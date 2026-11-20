@@ -30,27 +30,30 @@ class _QrScannerPageState extends State<QrScannerPage> {
     try {
       final result = await _qrService.redeemQrCode(code);
 
-      final points = result['points_earned'];
-
-      final balance = result['new_balance'];
-
       if (!mounted) return;
+
+      final isPendingRequest = result['request_pending'] == true;
+      final points = result['points'] ?? result['points_earned'];
+      final companyName = result['company_name']?.toString() ?? 'empresa';
+      final alreadyPending = result['already_pending'] == true;
+      final balance = result['new_balance'];
 
       await showDialog(
         context: context,
         barrierDismissible: false,
         builder: (context) {
           return AlertDialog(
-            title: const Text('Pontos recebidos! 🎉'),
+            title: Text(isPendingRequest ? 'Solicitação enviada! 🎉' : 'Pontos recebidos! 🎉'),
             content: Text(
-              'Você ganhou $points pontos.\n\n'
-              'Seu novo saldo é $balance pontos.',
+              isPendingRequest
+                  ? (alreadyPending
+                      ? 'Sua solicitação de $points pontos para o programa de fidelidade da $companyName já está aguardando aprovação da empresa.\n\nVocê poderá escanear novamente após esta solicitação ser analisada.'
+                      : 'Você solicitou $points pontos no programa de fidelidade da $companyName.\n\nA empresa precisa aprovar a solicitação antes que os pontos sejam adicionados ao seu saldo. Você receberá uma notificação quando houver uma decisão.')
+                  : 'Você ganhou $points pontos.\n\nSeu novo saldo é $balance pontos.',
             ),
             actions: [
               TextButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                },
+                onPressed: () => Navigator.of(context).pop(),
                 child: const Text('OK'),
               ),
             ],

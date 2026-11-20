@@ -14,6 +14,7 @@ import '../../pages/customer/loyalty_program_page.dart';
 import '../../pages/company/company_home_page.dart';
 import '../../pages/company/company_setup_page.dart';
 import '../../pages/company/generate_qr_page.dart';
+import '../../pages/company/static_qr_requests_page.dart';
 import '../../pages/company/validate_benefit_page.dart';
 import '../../pages/customer/qr_scanner_page.dart';
 import '../../pages/customer/benefit_qr_page.dart';
@@ -191,6 +192,7 @@ final appRouter = GoRouter(
 
       if (location == '/company' ||
           location == '/company/generate-qr' ||
+          location == '/company/qr-point-requests' ||
           location == '/company/validate-benefit' ||
           location == '/company/scan-benefit' ||
           location == '/company/dashboard' ||
@@ -304,6 +306,10 @@ final appRouter = GoRouter(
       builder: (context, state) {
         return const GenerateQrPage();
       },
+    ),
+    GoRoute(
+      path: '/company/qr-point-requests',
+      builder: (context, state) => const StaticQrRequestsPage(),
     ),
 
     GoRoute(

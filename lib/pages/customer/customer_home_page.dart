@@ -252,7 +252,7 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
       floatingActionButton: FloatingActionButton.large(
         tooltip: 'Escanear QR Code',
         onPressed: _openScanner,
-        child: const Icon(Icons.qr_code_scanner, size: 30),
+        child: const Icon(Icons.qr_code_scanner),
       ),
       bottomNavigationBar: _buildBottomNavigationBar(),
       body: RefreshIndicator(

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -44,6 +46,10 @@ class _CompanyHomePageState extends State<CompanyHomePage> {
   // ============================================================
 
   String? _companyId;
+
+  int _pendingStaticQrRequests = 0;
+
+  Timer? _pendingQrRefreshTimer;
 
   List<Map<String, dynamic>> _promotions = [];
 
@@ -121,6 +127,16 @@ class _CompanyHomePageState extends State<CompanyHomePage> {
         companyId,
       );
 
+      int pendingStaticQrRequests = 0;
+      try {
+        final pendingRows = await _supabase
+            .from('qr_point_requests')
+            .select('id')
+            .eq('company_id', companyId)
+            .eq('status', 'pending');
+        pendingStaticQrRequests = pendingRows.length;
+      } catch (_) {}
+
       if (!mounted) return;
 
       setState(() {
@@ -130,7 +146,13 @@ class _CompanyHomePageState extends State<CompanyHomePage> {
 
         _promotions = promotions;
 
+        _pendingStaticQrRequests = pendingStaticQrRequests;
+
         _loading = false;
+      });
+      _pendingQrRefreshTimer?.cancel();
+      _pendingQrRefreshTimer = Timer.periodic(const Duration(seconds: 20), (_) {
+        _refreshPendingQrRequestCount(companyId);
       });
     } catch (e) {
       if (!mounted) return;
@@ -142,6 +164,35 @@ class _CompanyHomePageState extends State<CompanyHomePage> {
       });
     }
   }
+
+  Future<void> _refreshPendingQrRequestCount(String companyId) async {
+    try {
+      final rows = await _supabase
+          .from('qr_point_requests')
+          .select('id')
+          .eq('company_id', companyId)
+          .eq('status', 'pending');
+      if (!mounted) return;
+      final count = rows.length;
+      final previous = _pendingStaticQrRequests;
+      if (count != previous) {
+        setState(() => _pendingStaticQrRequests = count);
+        if (count > previous && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Nova solicitação de pontos por QR Code permanente.')),
+          );
+        }
+      }
+    } catch (_) {}
+  }
+
+
+  @override
+  void dispose() {
+    _pendingQrRefreshTimer?.cancel();
+    super.dispose();
+  }
+
 
   // ============================================================
   // LOGOUT
@@ -285,6 +336,8 @@ class _CompanyHomePageState extends State<CompanyHomePage> {
                                         .pickAndUpload(
                                           folder: 'promotions',
                                           filePrefix: 'benefit',
+                                          cropContext: context,
+                                          cropAspectRatio: 16 / 9,
                                         );
                                     if (uploaded != null) {
                                       setDialogState(() => imageUrl = uploaded);
@@ -1009,6 +1062,20 @@ class _CompanyHomePageState extends State<CompanyHomePage> {
                 onTap: () {
                   context.push('/company/generate-qr');
                 },
+              ),
+            ),
+
+            const SizedBox(height: 12),
+
+            SizedBox(
+              width: double.infinity,
+              child: _ActionCard(
+                icon: Icons.notifications_active_outlined,
+                title: _pendingStaticQrRequests > 0
+                    ? 'Solicitações de pontos ($_pendingStaticQrRequests)'
+                    : 'Solicitações de pontos',
+                subtitle: 'Aprovar pontos solicitados por QR permanente',
+                onTap: () => context.push('/company/qr-point-requests'),
               ),
             ),
 
