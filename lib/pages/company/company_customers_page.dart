@@ -58,6 +58,50 @@ class _CompanyCustomersPageState extends State<CompanyCustomersPage> {
     }
   }
 
+  Future<void> _removeCustomer(Map<String, dynamic> customer) async {
+    final customerName = (customer['full_name'] ?? 'este cliente').toString();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Remover cliente do programa?'),
+        content: Text(
+          'O cliente "$customerName" deixará de aparecer em Meus clientes. '
+          'O saldo de pontos deste programa será zerado e o histórico será preservado. '
+          'Ele continuará tendo sua conta Fidelito. Deseja continuar?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(foregroundColor: Colors.white, backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Remover cliente'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _loading = true);
+    try {
+      await _service.removeCustomerFromProgram(customer['id'].toString());
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('$customerName foi removido do programa.')),
+      );
+      await _loadCustomers();
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _loading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.toString().replaceFirst('Exception: ', ''))),
+      );
+    }
+  }
+
+
   // ============================================================
   // CLIENTES FILTRADOS
   // ============================================================
@@ -397,6 +441,16 @@ class _CompanyCustomersPageState extends State<CompanyCustomersPage> {
               emptyText: 'Nenhuma recompensa cancelada.',
             ),
           ],
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
+              onPressed: _loading ? null : () => _removeCustomer(customer),
+              icon: const Icon(Icons.person_remove_alt_1_rounded),
+              label: const Text('Remover cliente do programa'),
+            ),
+          ),
         ],
       ),
     );

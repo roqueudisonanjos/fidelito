@@ -50,6 +50,13 @@ class DashboardService {
   // CLIENTES DA EMPRESA
   // ============================================================
 
+  Future<void> removeCustomerFromProgram(String customerId) async {
+    await _supabase.rpc(
+      'company_remove_customer_from_loyalty',
+      params: {'p_customer_id': customerId},
+    );
+  }
+
   Future<List<Map<String, dynamic>>> getCompanyCustomers() async {
     final companyId = await _getCompanyId();
 

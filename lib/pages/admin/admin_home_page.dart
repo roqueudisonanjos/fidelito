@@ -264,6 +264,52 @@ class _AdminHomePageState extends State<AdminHomePage> {
     }
   }
 
+  Future<void> _deleteCustomerAccount(Map<String, dynamic> customer) async {
+    final customerName = customer['full_name']?.toString() ?? 'este cliente';
+    final customerEmail = customer['email']?.toString() ?? 'e-mail não informado';
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Excluir conta do cliente?'),
+        content: Text(
+          'Esta ação é permanente e excluirá a conta Fidelito de "$customerName" ($customerEmail), '
+          'incluindo dados de fidelidade e acesso. Não será possível desfazer. Deseja continuar?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Excluir definitivamente'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    final id = customer['id'].toString();
+    setState(() => _busyId = id);
+    try {
+      await _adminService.deleteCustomerAccount(id);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Conta do cliente excluída.')),
+      );
+      await _loadData();
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.toString().replaceFirst('Exception: ', ''))),
+      );
+    } finally {
+      if (mounted) setState(() => _busyId = null);
+    }
+  }
+
+
   Future<void> _deleteCompanyAccount(Map<String, dynamic> company) async {
     final companyName = company['name']?.toString() ?? 'esta empresa';
     final ownerName =
@@ -536,6 +582,22 @@ class _AdminHomePageState extends State<AdminHomePage> {
                           )
                         : const Icon(Icons.lock_reset_rounded),
                     label: const Text('Gerar link de recuperação de senha'),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
+                    onPressed: isBusy ? null : () => _deleteCustomerAccount(customer),
+                    icon: isBusy
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.delete_forever_outlined),
+                    label: const Text('Excluir conta do cliente'),
                   ),
                 ),
               ],

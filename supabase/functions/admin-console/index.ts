@@ -179,6 +179,54 @@ Deno.serve(async (req: Request) => {
       return json({ recovery_link: recoveryLink, email: targetData.user.email });
     }
 
+    if (action === 'delete_customer_account_admin') {
+      const userId = String(body.user_id ?? '');
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(userId)) {
+        return json({ error: 'Identificador de cliente inválido.' }, 400);
+      }
+
+      const { data: profile, error: profileError } = await adminClient
+        .from('profiles').select('id, role, full_name').eq('id', userId).maybeSingle();
+      if (profileError) throw profileError;
+      if (!profile || profile.role !== 'customer') {
+        return json({ error: 'A conta selecionada não é de um cliente.' }, 404);
+      }
+
+      // Limpa os dados relacionados através da rotina segura existente antes de
+      // remover o usuário do Supabase Auth.
+      const { error: prepareError } = await adminClient.rpc(
+        'prepare_customer_account_deletion', { p_user_id: userId },
+      );
+      if (prepareError) throw prepareError;
+
+
+      // Remove imagens de perfil associadas ao usuário antes de excluir o Auth.
+      const profilePrefix = `profiles/${userId}`;
+      const { data: profileFiles, error: filesListError } = await adminClient.storage
+        .from('fidelito-images').list(profilePrefix, { limit: 1000 });
+      if (filesListError) throw new Error(`Não foi possível remover as imagens do cliente: ${filesListError.message}`);
+      const profilePaths = (profileFiles ?? []).filter((file) => !!file.name).map((file) => `${profilePrefix}/${file.name}`);
+      if (profilePaths.length) {
+        const { error: filesRemoveError } = await adminClient.storage.from('fidelito-images').remove(profilePaths);
+        if (filesRemoveError) throw new Error(`Não foi possível remover as imagens do cliente: ${filesRemoveError.message}`);
+      }
+
+      const { error: deleteError } = await adminClient.auth.admin.deleteUser(userId);
+      let accessBlocked = false;
+      if (deleteError) {
+        const { error: banError } = await adminClient.auth.admin.updateUserById(userId, { ban_duration: '876000h' });
+        if (banError) throw new Error(`Dados do cliente removidos, mas não foi possível excluir nem bloquear o acesso: ${banError.message}`);
+        accessBlocked = true;
+      }
+
+      await audit('admin_delete_customer_account', 'customer', userId, {
+        customer_name: profile.full_name ?? null,
+        access_blocked: accessBlocked,
+      });
+      return json({ success: true, user_id: userId, access_blocked: accessBlocked });
+    }
+
+
     if (action === 'generate_company_recovery_link') {
       const companyId = String(body.company_id ?? '');
       if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(companyId)) {

@@ -441,8 +441,40 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
               child: Text('Nenhuma recompensa disponível no momento.'),
             ),
           )
-        else
-          ...promotions.map(_buildPromotionCard),
+        else ...[
+          SizedBox(
+            // Extra vertical space plus an independently scrollable card body
+            // prevents long text/buttons from overflowing the reward card.
+            height: 560,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              clipBehavior: Clip.none,
+              padding: const EdgeInsets.only(right: 20),
+              itemCount: promotions.length > 10 ? 10 : promotions.length,
+              separatorBuilder: (_, _) => const SizedBox(width: 12),
+              itemBuilder: (context, index) => SizedBox(
+                width: 290,
+                child: _buildPromotionCard(promotions[index]),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton.icon(
+              onPressed: () => context.push(
+                '/customer/all-promotions',
+                extra: {
+                  'promotions': promotions,
+                  'companyPoints': companyPoints,
+                  'redeemedPromotionIds': redeemedPromotionIds,
+                },
+              ),
+              icon: const Icon(Icons.arrow_forward),
+              label: const Text('Ver todos'),
+            ),
+          ),
+        ],
       ],
     );
   }
@@ -478,12 +510,14 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
         if (left == true && mounted) await loadData();
       },
       child: Card(
-        margin: const EdgeInsets.only(bottom: 12),
+        clipBehavior: Clip.antiAlias,
+        margin: const EdgeInsets.only(bottom: 8),
         child: Padding(
           padding: const EdgeInsets.all(18),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
               if (promotion.imageUrl != null &&
                   promotion.imageUrl!.isNotEmpty) ...[
                 ClipRRect(
@@ -644,7 +678,8 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
                   ),
                 ),
               ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

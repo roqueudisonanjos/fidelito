@@ -19,8 +19,10 @@ import '../../pages/company/validate_benefit_page.dart';
 import '../../pages/customer/qr_scanner_page.dart';
 import '../../pages/customer/benefit_qr_page.dart';
 import '../../services/auth_service.dart';
+import '../../models/promotion.dart';
 import '../../services/company_service.dart';
 import '../../pages/customer/promotions_page.dart';
+import '../../pages/customer/all_promotions_page.dart';
 import '../../pages/customer/my_benefits_page.dart';
 import '../../pages/customer/benefit_detail_page.dart';
 import '../../pages/company/benefit_scanner_page.dart';
@@ -30,7 +32,6 @@ import '../../pages/company/company_reports_page.dart';
 import '../../pages/profile/edit_profile_page.dart';
 import '../../pages/admin/admin_home_page.dart';
 import '../../pages/auth/reset_password_page.dart';
-
 import '../../pages/company/company_customers_page.dart';
 import '../../pages/company/company_pending_page.dart';
 import '../../pages/company/company_suspended_page.dart';
@@ -134,6 +135,7 @@ final appRouter = GoRouter(
           location == '/customer/company-details' ||
           location == '/customer/loyalty-program' ||
           location == '/customer/promotions' ||
+          location == '/customer/all-promotions' ||
           location == '/customer/my-benefits' ||
           location == '/customer/benefit-detail' ||
           location == '/customer/benefit-qr' ||
@@ -312,6 +314,16 @@ final appRouter = GoRouter(
       builder: (context, state) => const StaticQrRequestsPage(),
     ),
 
+
+    GoRoute(
+      path: '/customer/all-promotions',
+      builder: (context, state) {
+        final extra = state.extra as Map<String, dynamic>?;
+        final promotions = (extra?['promotions'] as List<dynamic>? ?? [])
+            .cast<Promotion>();
+        return AllPromotionsPage(promotions: promotions);
+      },
+    ),
     GoRoute(
       path: '/customer/promotions',
       builder: (context, state) {

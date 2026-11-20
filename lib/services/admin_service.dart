@@ -77,6 +77,13 @@ class AdminService {
     return link;
   }
 
+  Future<void> deleteCustomerAccount(String customerId) async {
+    await _invoke({
+      'action': 'delete_customer_account_admin',
+      'user_id': customerId,
+    });
+  }
+
   Future<void> deleteCompanyAccount(String companyId) async {
     await _invoke({
       'action': 'delete_company_account_admin',

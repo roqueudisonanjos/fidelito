@@ -255,91 +255,159 @@ class _LoyaltyProgramPageState extends State<LoyaltyProgramPage> {
                     ),
                   ),
                   const SizedBox(height: 20),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Recompensas disponíveis',
-                        style: TextStyle(
-                          fontSize: 19,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      if (company['active'] == true)
-                        TextButton(
-                          onPressed: () => context.push(
-                            '/customer/promotions?companyId=$_companyId',
-                          ),
-                          child: const Text('Ver todos'),
-                        ),
-                    ],
+                  const Text(
+                    'Recompensas disponíveis',
+                    style: TextStyle(fontSize: 21, fontWeight: FontWeight.bold),
                   ),
+                  const SizedBox(height: 14),
                   if (_promotions.isEmpty)
-                    const Text(
-                      'Esta empresa não possui recompensas disponíveis no momento.',
-                    ),
-                  ..._promotions.take(4).map((p) {
-                    final cost = (p['points_required'] as num?)?.toInt() ?? 0;
-                    final alreadyRedeemedFree =
-                        cost == 0 &&
-                        _redeemedPromotionIds.contains(p['id'].toString());
-                    final canRedeem = !alreadyRedeemedFree && _points >= cost;
-                    final reward = p['type'] == 'discount'
-                        ? '${p['discount_percentage'] ?? ''}% de desconto'
-                        : (p['gift_description'] ?? 'Brinde').toString();
-                    return Card(
-                      margin: const EdgeInsets.only(bottom: 12),
+                    const Card(
                       child: Padding(
-                        padding: const EdgeInsets.all(14),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            if ((p['image_url'] ?? '').toString().isNotEmpty)
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(10),
-                                child: Image.network(
-                                  p['image_url'].toString(),
-                                  height: 110,
-                                  width: double.infinity,
-                                  fit: BoxFit.cover,
-                                ),
-                              ),
-                            Text(
-                              p['title']?.toString() ?? 'Recompensa',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(reward),
-                            if ((p['description'] ?? '').toString().isNotEmpty)
-                              Text(p['description'].toString()),
-                            const SizedBox(height: 8),
-                            Text(cost == 0 ? 'Grátis • sem pontos' : '$cost pontos'),
-                            Align(
-                              alignment: Alignment.centerRight,
-                              child: FilledButton.tonal(
-                                onPressed: canRedeem ? () => _redeem(p) : null,
-                                style: FilledButton.styleFrom(
-                                  disabledBackgroundColor: alreadyRedeemedFree
-                                      ? Colors.grey.shade400
-                                      : null,
-                                  disabledForegroundColor: alreadyRedeemedFree
-                                      ? Colors.white
-                                      : null,
-                                ),
-                                child: Text(
-                                  alreadyRedeemedFree
-                                      ? 'Recompensa resgatada'
-                                      : 'Resgatar',
-                                ),
-                              ),
-                            ),
-                          ],
+                        padding: EdgeInsets.all(20),
+                        child: Text(
+                          'Esta empresa não possui recompensas disponíveis no momento.',
                         ),
                       ),
-                    );
-                  }),
+                    )
+                  else ...[
+                    SizedBox(
+                      height: 560,
+                      child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        clipBehavior: Clip.none,
+                        padding: const EdgeInsets.only(right: 20),
+                        itemCount: _promotions.length > 10 ? 10 : _promotions.length,
+                        separatorBuilder: (_, _) => const SizedBox(width: 12),
+                        itemBuilder: (context, index) {
+                          final p = _promotions[index];
+                          final cost = (p['points_required'] as num?)?.toInt() ?? 0;
+                          final alreadyRedeemedFree = cost == 0 &&
+                              _redeemedPromotionIds.contains(p['id'].toString());
+                          final canRedeem = !alreadyRedeemedFree && _points >= cost;
+                          final reward = p['type'] == 'discount' && p['discount_percentage'] != null
+                              ? '${p['discount_percentage']}% de desconto'
+                              : (p['gift_description'] ?? 'Brinde').toString();
+                          final description = (p['description'] ?? '').toString();
+                          return SizedBox(
+                            width: 290,
+                            child: Card(
+                              clipBehavior: Clip.antiAlias,
+                              margin: const EdgeInsets.only(bottom: 8),
+                              child: Padding(
+                                padding: const EdgeInsets.all(18),
+                                child: SingleChildScrollView(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      if ((p['image_url'] ?? '').toString().isNotEmpty) ...[
+                                        ClipRRect(
+                                          borderRadius: BorderRadius.circular(14),
+                                          child: Image.network(
+                                            p['image_url'].toString(),
+                                            height: 130,
+                                            width: double.infinity,
+                                            fit: BoxFit.cover,
+                                            errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 10),
+                                      ],
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                              p['title']?.toString() ?? 'Recompensa',
+                                              style: const TextStyle(
+                                                fontSize: 17,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                            decoration: BoxDecoration(
+                                              borderRadius: BorderRadius.circular(20),
+                                              color: canRedeem
+                                                  ? Colors.green.withValues(alpha: .12)
+                                                  : Colors.grey.withValues(alpha: .12),
+                                            ),
+                                            child: Text(
+                                              cost == 0 ? 'Grátis' : '$cost pts',
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                color: canRedeem ? Colors.green : Colors.grey,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        reward,
+                                        style: TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.w600,
+                                          color: Theme.of(context).colorScheme.primary,
+                                        ),
+                                      ),
+                                      if (description.isNotEmpty) ...[
+                                        const SizedBox(height: 6),
+                                        Text(description, style: const TextStyle(color: Colors.grey)),
+                                      ],
+                                      const SizedBox(height: 12),
+                                      Text(
+                                        alreadyRedeemedFree
+                                            ? 'Você já resgatou esta recompensa gratuita.'
+                                            : canRedeem
+                                                ? 'Você já pode resgatar esta recompensa.'
+                                                : 'Faltam ${cost - _points} pontos nesta empresa.',
+                                        style: TextStyle(
+                                          color: alreadyRedeemedFree
+                                              ? Colors.grey
+                                              : canRedeem
+                                                  ? Colors.green
+                                                  : Colors.grey,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 14),
+                                      SizedBox(
+                                        width: double.infinity,
+                                        child: ElevatedButton(
+                                          onPressed: canRedeem ? () => _redeem(p) : null,
+                                          style: ElevatedButton.styleFrom(
+                                            disabledBackgroundColor: alreadyRedeemedFree ? Colors.grey.shade400 : null,
+                                            disabledForegroundColor: alreadyRedeemedFree ? Colors.white : null,
+                                          ),
+                                          child: Text(
+                                            alreadyRedeemedFree
+                                                ? 'Recompensa resgatada'
+                                                : canRedeem
+                                                    ? 'Resgatar recompensa'
+                                                    : 'Pontos insuficientes',
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton.icon(
+                        onPressed: () => context.push(
+                          '/customer/promotions?companyId=$_companyId',
+                        ),
+                        icon: const Icon(Icons.arrow_forward),
+                        label: const Text('Ver todos'),
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 16),
                   const Text(
                     'Histórico de pontos',
