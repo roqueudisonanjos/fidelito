@@ -32,6 +32,7 @@ import '../../pages/company/company_reports_page.dart';
 import '../../pages/profile/edit_profile_page.dart';
 import '../../pages/admin/admin_home_page.dart';
 import '../../pages/auth/reset_password_page.dart';
+
 import '../../pages/company/company_customers_page.dart';
 import '../../pages/company/company_pending_page.dart';
 import '../../pages/company/company_suspended_page.dart';
@@ -135,13 +136,13 @@ final appRouter = GoRouter(
           location == '/customer/company-details' ||
           location == '/customer/loyalty-program' ||
           location == '/customer/promotions' ||
-          location == '/customer/all-promotions' ||
           location == '/customer/my-benefits' ||
           location == '/customer/benefit-detail' ||
           location == '/customer/benefit-qr' ||
           location == '/customer/scan-benefit' ||
           location == '/customer/history' ||
           location == '/customer/transactions' ||
+          location.startsWith('/customer/loyalty-history/') ||
           location == '/customer/notifications' ||
           location == '/profile/edit') {
         return null;
@@ -389,6 +390,18 @@ final appRouter = GoRouter(
       path: '/customer/transactions',
       builder: (context, state) {
         return const TransactionsPage();
+      },
+    ),
+    GoRoute(
+      path: '/customer/loyalty-history/:companyId',
+      builder: (context, state) {
+        final company = state.extra is Map<String, dynamic>
+            ? Map<String, dynamic>.from(state.extra as Map<String, dynamic>)
+            : <String, dynamic>{};
+        return HistoryPage(
+          companyId: state.pathParameters['companyId'],
+          companyName: company['name']?.toString(),
+        );
       },
     ),
 

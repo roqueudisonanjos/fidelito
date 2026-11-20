@@ -2,9 +2,14 @@ import 'package:flutter/material.dart';
 
 import '../../models/loyalty_transaction.dart';
 import '../../services/customer_service.dart';
+import '../../services/loyalty_program_service.dart';
 
 class HistoryPage extends StatefulWidget {
-  const HistoryPage({super.key});
+  const HistoryPage({super.key, this.companyId, this.companyName});
+
+  final String? companyId;
+  final String? companyName;
+
 
   @override
   State<HistoryPage> createState() => _HistoryPageState();
@@ -12,6 +17,7 @@ class HistoryPage extends StatefulWidget {
 
 class _HistoryPageState extends State<HistoryPage> {
   final CustomerService _service = CustomerService();
+  final LoyaltyProgramService _loyaltyService = LoyaltyProgramService();
 
   bool _loading = true;
 
@@ -33,7 +39,15 @@ class _HistoryPageState extends State<HistoryPage> {
     });
 
     try {
-      final transactions = await _service.getTransactions();
+      final List<LoyaltyTransaction> transactions;
+      if (widget.companyId == null) {
+        transactions = await _service.getTransactions();
+      } else {
+        final companyRows = await _loyaltyService.getCompanyTransactions(widget.companyId!);
+        transactions = companyRows
+            .map((row) => LoyaltyTransaction.fromMap(row))
+            .toList();
+      }
 
       if (!mounted) return;
 
@@ -55,7 +69,13 @@ class _HistoryPageState extends State<HistoryPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Histórico de pontos')),
+      appBar: AppBar(
+        title: Text(
+          widget.companyName == null || widget.companyName!.trim().isEmpty
+              ? 'Histórico de pontos'
+              : 'Histórico • ${widget.companyName}',
+        ),
+      ),
       body: _buildBody(),
     );
   }

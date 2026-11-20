@@ -26,7 +26,7 @@ class AllPromotionsPage extends StatelessWidget {
           : ListView.separated(
               padding: const EdgeInsets.all(16),
               itemCount: promotions.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 12),
+              separatorBuilder: (_, _) => const SizedBox(height: 12),
               itemBuilder: (context, index) {
                 final promotion = promotions[index];
                 return Card(
@@ -54,7 +54,7 @@ class AllPromotionsPage extends StatelessWidget {
                                 width: double.infinity,
                                 height: 150,
                                 fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                                errorBuilder: (_, _, _) => const SizedBox.shrink(),
                               ),
                             ),
                           if ((promotion.imageUrl ?? '').isNotEmpty)

@@ -10,6 +10,7 @@ import '../../services/promotion_service.dart';
 import '../../services/support_service.dart';
 import '../../services/share_service.dart';
 import '../../services/notification_service.dart';
+import '../../services/qr_service.dart';
 import '../../widgets/help_tutorial_dialog.dart';
 
 class CustomerHomePage extends StatefulWidget {
@@ -251,7 +252,7 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       floatingActionButton: FloatingActionButton.large(
         tooltip: 'Escanear QR Code',
-        onPressed: _openScanner,
+        onPressed: _openQrOptions,
         child: const Icon(Icons.qr_code_scanner),
       ),
       bottomNavigationBar: _buildBottomNavigationBar(),
@@ -411,10 +412,102 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
     );
   }
 
-  Future<void> _openScanner() async {
-    final result = await context.push<bool>('/customer/scan');
-    if (!mounted) return;
-    if (result == true) await loadData();
+  Future<void> _openQrOptions() async {
+    final option = await showModalBottomSheet<String>(
+      context: context,
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.qr_code_scanner),
+                title: const Text('Escanear QR Code'),
+                onTap: () => Navigator.pop(sheetContext, 'scan'),
+              ),
+              ListTile(
+                leading: const Icon(Icons.keyboard),
+                title: const Text('Inserir código manualmente'),
+                onTap: () => Navigator.pop(sheetContext, 'manual'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (!mounted || option == null) return;
+    if (option == 'scan') {
+      final result = await context.push<bool>('/customer/scan');
+      if (!mounted) return;
+      if (result == true) await loadData();
+    } else if (option == 'manual') {
+      await _enterManualQrCode();
+    }
+  }
+
+
+  Future<void> _enterManualQrCode() async {
+    final controller = TextEditingController();
+    final code = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Inserir código manualmente'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          textCapitalization: TextCapitalization.none,
+          decoration: const InputDecoration(
+            labelText: 'Código de validação',
+            hintText: 'Digite ou cole o código',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(dialogContext, controller.text.trim()),
+            child: const Text('Validar código'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (!mounted || code == null || code.trim().isEmpty) return;
+    try {
+      final result = await QrService().redeemQrCode(code.trim());
+      if (!mounted) return;
+      final pending = result['request_pending'] == true;
+      final points = result['points'] ?? result['points_earned'];
+      final companyName = result['company_name']?.toString() ?? 'empresa';
+      final alreadyPending = result['already_pending'] == true;
+      final balance = result['new_balance'];
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: Text(pending ? 'Solicitação enviada! 🎉' : 'Pontos recebidos! 🎉'),
+          content: Text(
+            pending
+                ? (alreadyPending
+                    ? 'Sua solicitação de $points pontos para o programa de fidelidade da $companyName já está aguardando aprovação da empresa.\n\nVocê poderá inserir outro código após esta solicitação ser analisada.'
+                    : 'Você solicitou $points pontos no programa de fidelidade da $companyName.\n\nA empresa precisa aprovar a solicitação antes que os pontos sejam adicionados ao seu saldo. Você receberá uma notificação quando houver uma decisão.')
+                : 'Você ganhou $points pontos.\n\nSeu novo saldo é $balance pontos.',
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('OK')),
+          ],
+        ),
+      );
+      if (mounted) await loadData();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+      );
+    }
   }
 
   Future<void> _openProfile() async {
@@ -735,7 +828,7 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
             ),
           )
         else
-          ...transactions.map(_buildTransaction),
+          ...transactions.take(5).map(_buildTransaction),
       ],
     );
   }

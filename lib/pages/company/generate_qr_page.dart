@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:go_router/go_router.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -90,6 +92,23 @@ class _GenerateQrPageState extends State<GenerateQrPage> {
     setState(() { _qrCode = null; _error = null; });
   }
 
+
+  Future<void> _copyManualCode() async {
+    if (_qrCode == null) return;
+    await Clipboard.setData(ClipboardData(text: _qrCode!.code));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Código de validação copiado.')),
+    );
+  }
+
+  Future<void> _shareManualCode() async {
+    if (_qrCode == null) return;
+    final qr = _qrCode!;
+    await SharePlus.instance.share(ShareParams(
+      text: 'Código Fidelito para receber ${qr.points} pontos na fidelidade de $_companyName: ${qr.code}',
+    ));
+  }
 
   Future<void> _printQr() async {
     if (_qrCode == null || !_qrCode!.isStatic || _printing) return;
@@ -214,6 +233,32 @@ class _GenerateQrPageState extends State<GenerateQrPage> {
           Text(qr.isStatic ? 'Este QR pode ser impresso e usado por vários clientes.' : 'Peça para o cliente escanear o código.', textAlign: TextAlign.center),
           const SizedBox(height: 4),
           Text(qr.isStatic ? 'Permanecerá ativo até ser desativado.' : 'Válido por 10 minutos e uso único.', textAlign: TextAlign.center, style: const TextStyle(color: Colors.grey)),
+          const SizedBox(height: 12),
+          SelectableText(
+            qr.code,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 13, color: Colors.grey),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _copyManualCode,
+                  icon: const Icon(Icons.copy),
+                  label: const Text('Copiar código'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _shareManualCode,
+                  icon: const Icon(Icons.share),
+                  label: const Text('Compartilhar'),
+                ),
+              ),
+            ],
+          ),
           if (qr.isStatic) ...[
             const SizedBox(height: 18),
             SizedBox(

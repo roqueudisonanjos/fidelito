@@ -167,11 +167,10 @@ class LoyaltyProgramService {
   ) async {
     final response = await _supabase
         .from('loyalty_transactions')
-        .select('id, type, points, description, created_at')
+        .select('id, company_id, type, points, description, created_at')
         .eq('customer_id', _userId)
         .eq('company_id', companyId)
-        .order('created_at', ascending: false)
-        .limit(20);
+        .order('created_at', ascending: false);
     return List<Map<String, dynamic>>.from(response);
   }
 
