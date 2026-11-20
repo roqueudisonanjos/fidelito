@@ -69,6 +69,23 @@ class _CompanyDetailsPageState extends State<CompanyDetailsPage> {
     }
   }
 
+  String _socialUsername(String key) =>
+      (_company[key] ?? '').toString().trim().replaceFirst(RegExp(r'^@+'), '');
+
+  Future<void> _openSocial(String platform, String username) async {
+    if (username.isEmpty) return;
+    final uri = Uri.parse(platform == 'instagram'
+        ? 'https://www.instagram.com/$username/'
+        : 'https://www.tiktok.com/@$username');
+    final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!opened && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Não foi possível abrir o $platform.')),
+      );
+    }
+  }
+
+
   String get _location {
     final city = (_company['city'] ?? '').toString().trim();
     final state = (_company['state'] ?? '').toString().trim();
@@ -82,6 +99,8 @@ class _CompanyDetailsPageState extends State<CompanyDetailsPage> {
     final address = (_company['address'] ?? '').toString().trim();
     final phone = (_company['phone'] ?? '').toString().trim();
     final logoUrl = (_company['logo_url'] ?? '').toString().trim();
+    final instagram = _socialUsername('instagram_username');
+    final tiktok = _socialUsername('tiktok_username');
     final joined = _company['joined'] == true;
     final fullAddress = [
       if (address.isNotEmpty) address,
@@ -210,6 +229,38 @@ class _CompanyDetailsPageState extends State<CompanyDetailsPage> {
                     ],
                   ),
                 ),
+                if (instagram.isNotEmpty || tiktok.isNotEmpty) ...[
+                  const SizedBox(height: 18),
+                  Text(
+                    'Redes sociais',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: 8),
+                  Card(
+                    child: Column(
+                      children: [
+                        if (instagram.isNotEmpty)
+                          ListTile(
+                            leading: const Icon(Icons.camera_alt_outlined),
+                            title: const Text('Instagram'),
+                            subtitle: Text('@$instagram'),
+                            trailing: const Icon(Icons.open_in_new, size: 18),
+                            onTap: () => _openSocial('instagram', instagram),
+                          ),
+                        if (instagram.isNotEmpty && tiktok.isNotEmpty)
+                          const Divider(height: 1),
+                        if (tiktok.isNotEmpty)
+                          ListTile(
+                            leading: const Icon(Icons.music_note_outlined),
+                            title: const Text('TikTok'),
+                            subtitle: Text('@$tiktok'),
+                            trailing: const Icon(Icons.open_in_new, size: 18),
+                            onTap: () => _openSocial('tiktok', tiktok),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
                 if (phone.isNotEmpty) ...[
                   const SizedBox(height: 14),
                   FilledButton.icon(

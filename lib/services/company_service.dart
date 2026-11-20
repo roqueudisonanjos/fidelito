@@ -17,7 +17,7 @@ class CompanyService {
     final company = await _supabase
         .from('companies')
         .select(
-          'id, owner_id, name, description, phone, address, city, state, logo_url, active, suspended_at',
+          'id, owner_id, name, description, phone, address, city, state, logo_url, instagram_username, tiktok_username, active, suspended_at',
         )
         .eq('owner_id', user.id)
         .maybeSingle();
@@ -37,6 +37,8 @@ class CompanyService {
     String? city,
     String? state,
     String? logoUrl,
+    String? instagramUsername,
+    String? tiktokUsername,
   }) async {
     final user = _supabase.auth.currentUser;
 
@@ -54,8 +56,15 @@ class CompanyService {
         'p_city': city,
         'p_state': state?.trim().toUpperCase(),
         'p_logo_url': logoUrl,
+        'p_instagram_username': _cleanSocialUsername(instagramUsername),
+        'p_tiktok_username': _cleanSocialUsername(tiktokUsername),
       },
     );
+  }
+
+  String? _cleanSocialUsername(String? value) {
+    final cleaned = (value ?? '').trim().replaceFirst(RegExp(r'^@+'), '');
+    return cleaned.isEmpty ? null : cleaned;
   }
 
   Future<Map<String, dynamic>> createCompany({

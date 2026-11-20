@@ -17,7 +17,7 @@ class LoyaltyProgramService {
     var query = _supabase
         .from('companies')
         .select(
-          'id, name, description, phone, address, city, state, logo_url, active',
+          'id, name, description, phone, address, city, state, logo_url, instagram_username, tiktok_username, active',
         )
         .eq('active', true);
 
@@ -135,7 +135,7 @@ class LoyaltyProgramService {
     final response = await _supabase
         .from('companies')
         .select(
-          'id, name, description, phone, address, city, state, logo_url, active',
+          'id, name, description, phone, address, city, state, logo_url, instagram_username, tiktok_username, active',
         )
         .eq('id', companyId)
         .eq('active', true)

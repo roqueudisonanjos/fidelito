@@ -26,6 +26,8 @@ class _CompanySetupPageState extends State<CompanySetupPage> {
 
   final _cityController = TextEditingController();
   final _stateController = TextEditingController();
+  final _instagramController = TextEditingController();
+  final _tiktokController = TextEditingController();
 
   final CompanyService _companyService = CompanyService();
 
@@ -71,6 +73,8 @@ class _CompanySetupPageState extends State<CompanySetupPage> {
         _addressController.text = company['address']?.toString() ?? '';
         _cityController.text = company['city']?.toString() ?? '';
         _stateController.text = company['state']?.toString() ?? '';
+        _instagramController.text = company['instagram_username']?.toString() ?? '';
+        _tiktokController.text = company['tiktok_username']?.toString() ?? '';
         _logoUrl = company['logo_url']?.toString();
 
         setState(() {
@@ -187,6 +191,8 @@ class _CompanySetupPageState extends State<CompanySetupPage> {
               ? null
               : _stateController.text.trim(),
           logoUrl: _logoUrl,
+          instagramUsername: _instagramController.text.trim(),
+          tiktokUsername: _tiktokController.text.trim(),
         );
 
         if (!mounted) return;
@@ -220,21 +226,27 @@ class _CompanySetupPageState extends State<CompanySetupPage> {
             ? null
             : _stateController.text.trim(),
       );
-      if (_logoUrl != null) {
+      // Salva logo e redes sociais opcionais no registro recém-criado,
+      // somente se algum desses dados foi informado.
+      if ((_logoUrl ?? '').trim().isNotEmpty ||
+          _instagramController.text.trim().isNotEmpty ||
+          _tiktokController.text.trim().isNotEmpty) {
         await _companyService.updateCompany(
           name: _nameController.text.trim(),
           description: _descriptionController.text.trim().isEmpty
-              ? null
-              : _descriptionController.text.trim(),
+          ? null
+          : _descriptionController.text.trim(),
           phone: _phoneController.text.trim().isEmpty
-              ? null
-              : _phoneController.text.trim(),
+          ? null
+          : _phoneController.text.trim(),
           address: _addressController.text.trim().isEmpty
-              ? null
-              : _addressController.text.trim(),
+          ? null
+          : _addressController.text.trim(),
           city: _cityController.text.trim(),
           state: _stateController.text.trim(),
           logoUrl: _logoUrl,
+          instagramUsername: _instagramController.text.trim(),
+          tiktokUsername: _tiktokController.text.trim(),
         );
       }
 
@@ -315,6 +327,8 @@ class _CompanySetupPageState extends State<CompanySetupPage> {
     _addressController.dispose();
     _cityController.dispose();
     _stateController.dispose();
+    _instagramController.dispose();
+    _tiktokController.dispose();
 
     super.dispose();
   }
@@ -525,6 +539,37 @@ class _CompanySetupPageState extends State<CompanySetupPage> {
                   ),
                 ),
 
+                const SizedBox(height: 16),
+
+                // ==================================================
+                // REDES SOCIAIS (OPCIONAIS)
+                // ==================================================
+                Text(
+                  'Redes sociais (opcional)',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: _instagramController,
+                  keyboardType: TextInputType.url,
+                  decoration: const InputDecoration(
+                    labelText: 'Instagram',
+                    hintText: '@nomedaempresa',
+                    prefixIcon: Icon(Icons.camera_alt_outlined),
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _tiktokController,
+                  keyboardType: TextInputType.url,
+                  decoration: const InputDecoration(
+                    labelText: 'TikTok',
+                    hintText: '@nomedaempresa',
+                    prefixIcon: Icon(Icons.music_note_outlined),
+                    border: OutlineInputBorder(),
+                  ),
+                ),
                 const SizedBox(height: 16),
 
                 // ==================================================
