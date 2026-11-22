@@ -17,7 +17,7 @@ class LoyaltyProgramService {
     var query = _supabase
         .from('companies')
         .select(
-          'id, name, description, phone, address, city, state, logo_url, instagram_username, tiktok_username, active',
+          'id, name, description, phone, address, city, state, logo_url, instagram_username, tiktok_username, active, category',
         )
         .eq('active', true);
 
@@ -27,10 +27,8 @@ class LoyaltyProgramService {
     if (state != null && state.trim().isNotEmpty) {
       query = query.ilike('state', state.trim());
     }
-    if (search != null && search.trim().isNotEmpty) {
-      query = query.ilike('name', '%${search.trim()}%');
-    }
-
+    // Search is applied locally to name, description and category so discovery
+    // can match business types as well as exact company names.
     final companies = await query.order('name');
     final accounts = await _supabase
         .from('loyalty_accounts')
@@ -39,10 +37,17 @@ class LoyaltyProgramService {
         .isFilter('left_at', null);
     final joinedIds = accounts.map((a) => a['company_id'].toString()).toSet();
 
+    final searchFilter = search?.trim().toLowerCase() ?? '';
     return companies.map((company) {
       final item = Map<String, dynamic>.from(company);
       item['joined'] = joinedIds.contains(item['id'].toString());
       return item;
+    }).where((company) {
+      if (searchFilter.isEmpty) return true;
+      final name = (company['name'] ?? '').toString().toLowerCase();
+      final description = (company['description'] ?? '').toString().toLowerCase();
+      final category = (company['category'] ?? '').toString().toLowerCase();
+      return name.contains(searchFilter) || description.contains(searchFilter) || category.contains(searchFilter);
     }).toList();
   }
 
@@ -56,7 +61,7 @@ class LoyaltyProgramService {
         .select('''
           id, company_id, title, description, type, points_required,
           discount_percentage, gift_description, image_url, starts_at, ends_at,
-          companies!inner(id, name, city, state, logo_url, active)
+          companies!inner(id, name, city, state, logo_url, active, category)
         ''')
         .eq('active', true)
         .isFilter('deleted_at', null)
@@ -135,7 +140,7 @@ class LoyaltyProgramService {
     final response = await _supabase
         .from('companies')
         .select(
-          'id, name, description, phone, address, city, state, logo_url, instagram_username, tiktok_username, active',
+          'id, name, description, phone, address, city, state, logo_url, instagram_username, tiktok_username, active, category',
         )
         .eq('id', companyId)
         .eq('active', true)
@@ -189,6 +194,8 @@ class LoyaltyProgramService {
 
     final now = DateTime.now().toUtc();
     return List<Map<String, dynamic>>.from(response).where((p) {
+      final points = (p['points_required'] as num?)?.toInt() ?? 0;
+      if (points <= 0) return false;
       final starts = p['starts_at'] == null
           ? null
           : DateTime.tryParse(p['starts_at'].toString())?.toUtc();

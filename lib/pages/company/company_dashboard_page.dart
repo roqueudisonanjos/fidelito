@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+
+import '../../widgets/company/company_app_bar_actions.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../services/dashboard_service.dart';
+import '../../widgets/company/company_bottom_navigation.dart';
 
 class CompanyDashboardPage extends StatefulWidget {
   const CompanyDashboardPage({super.key});
@@ -55,7 +58,11 @@ class _CompanyDashboardPageState extends State<CompanyDashboardPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Dashboard')),
+      appBar: AppBar(
+        title: const Text('Dashboard'),
+        actions: [CompanyAppBarActions(onRefresh: _loadDashboard, refreshEnabled: !_loading)],
+      ),
+      bottomNavigationBar: const CompanyBottomNavigation(selectedIndex: 1),
 
       body: _buildBody(),
     );

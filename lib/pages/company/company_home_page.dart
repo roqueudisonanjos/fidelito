@@ -12,6 +12,7 @@ import '../../services/support_service.dart';
 import '../../services/image_upload_service.dart';
 import '../../services/share_service.dart';
 import '../../widgets/help_tutorial_dialog.dart';
+import '../../widgets/company/company_bottom_navigation.dart';
 
 class CompanyHomePage extends StatefulWidget {
   final bool showOnlyPromotions;
@@ -144,7 +145,9 @@ class _CompanyHomePageState extends State<CompanyHomePage> {
 
         _companyId = companyId;
 
-        _promotions = promotions;
+        // Recompensas sem pontos foram convertidas em ofertas pela migration.
+        // Não as reapresentamos no gerenciador de fidelidade.
+        _promotions = promotions.where((item) => ((item['points_required'] as num?)?.toInt() ?? 0) > 0).toList();
 
         _pendingStaticQrRequests = pendingStaticQrRequests;
 
@@ -238,16 +241,12 @@ class _CompanyHomePageState extends State<CompanyHomePage> {
     final giftController = TextEditingController();
 
     String type = promotion?['type']?.toString() ?? 'discount';
-    bool freeReward =
-        (promotion?['points_required'] as num?)?.toInt() == 0;
     String? imageUrl = promotion?['image_url']?.toString();
     bool uploadingImage = false;
 
     titleController.text = promotion?['title']?.toString() ?? '';
     descriptionController.text = promotion?['description']?.toString() ?? '';
-    pointsController.text = freeReward
-        ? '0'
-        : (promotion?['points_required']?.toString() ?? '');
+    pointsController.text = (promotion?['points_required']?.toString() ?? '');
     discountController.text =
         promotion?['discount_percentage']?.toString() ?? '';
     giftController.text = promotion?['gift_description']?.toString() ?? '';
@@ -413,39 +412,21 @@ class _CompanyHomePageState extends State<CompanyHomePage> {
                         const SizedBox(height: 16),
 
                         // ==================================================
-                        // RESGATE GRATUITO / PONTOS
-                        // ==================================================
-                        SwitchListTile.adaptive(
-                          contentPadding: EdgeInsets.zero,
-                          value: freeReward,
-                          title: const Text('Recompensa gratuita (sem pontos)'),
-                          subtitle: const Text(
-                            'Ideal para ofertas de primeira visita ou primeiro serviço.',
-                          ),
-                          onChanged: (value) {
-                            setDialogState(() {
-                              freeReward = value;
-                              pointsController.text = value ? '0' : '10';
-                            });
-                          },
-                        ),
+                        // Recompensas agora exigem pontos; ofertas promocionais
+                        // são gerenciadas em uma área separada.
                         const SizedBox(height: 8),
                         TextFormField(
                           controller: pointsController,
-                          enabled: !freeReward,
+                          enabled: true,
                           keyboardType: TextInputType.number,
                           decoration: InputDecoration(
-                            labelText: freeReward
-                                ? 'Resgate sem custo em pontos'
-                                : 'Pontos necessários',
-                            helperText: freeReward
-                                ? 'O cliente poderá resgatar sem descontar pontos.'
-                                : 'Quantidade de pontos para resgatar a recompensa.',
+                            labelText: 'Pontos necessários',
+                            helperText: 'Quantidade de pontos para resgatar a recompensa.', 
                             border: const OutlineInputBorder(),
                           ),
                           validator: (value) {
-                            if (freeReward) return null;
-                            final points = int.tryParse(value ?? '');
+                            if (value == null || value.trim().isEmpty) return 'Informe a quantidade de pontos.';
+                            final points = int.tryParse(value);
                             if (points == null || points <= 0) {
                               return 'Informe uma quantidade válida.';
                             }
@@ -494,7 +475,7 @@ class _CompanyHomePageState extends State<CompanyHomePage> {
                             maxLines: 2,
                             decoration: const InputDecoration(
                               labelText: 'Descrição do brinde',
-                              hintText: 'Ex.: Design de sobrancelha grátis',
+                              hintText: 'Ex.: 20% de desconto em design de sobrancelha',
                               border: OutlineInputBorder(),
                             ),
                             validator: (value) {
@@ -598,9 +579,7 @@ class _CompanyHomePageState extends State<CompanyHomePage> {
                           final messenger = ScaffoldMessenger.of(context);
 
                           try {
-                            final points = freeReward
-                                ? 0
-                                : int.parse(pointsController.text.trim());
+                            final points = int.parse(pointsController.text.trim());
 
                             double? discount;
 
@@ -943,6 +922,7 @@ class _CompanyHomePageState extends State<CompanyHomePage> {
             onPressed: () => ShareService.shareCompanyClub(
               companyName: _companyData?.companyName ?? 'nossa empresa',
               companyLogoUrl: _companyData?.companyLogoUrl,
+              companyId: _companyData?.companyId,
             ),
             icon: const Icon(Icons.share_rounded),
           ),
@@ -975,13 +955,16 @@ class _CompanyHomePageState extends State<CompanyHomePage> {
       // ========================================================
       // BOTÃO NOVO BENEFÍCIO
       // ========================================================
-      floatingActionButton: _companyId == null || _loading
+      floatingActionButton: !widget.showOnlyPromotions || _companyId == null || _loading
           ? null
           : FloatingActionButton.extended(
               onPressed: _showCreatePromotionDialog,
               icon: const Icon(Icons.add),
               label: const Text('Nova recompensa'),
             ),
+
+      // Navegação principal da área empresarial.
+      bottomNavigationBar: CompanyBottomNavigation(selectedIndex: widget.showOnlyPromotions ? 3 : 0),
 
       // ========================================================
       // BODY
@@ -1013,8 +996,6 @@ class _CompanyHomePageState extends State<CompanyHomePage> {
     if (widget.showOnlyPromotions) {
       return _buildPromotionsOnlyBody();
     }
-
-    final colorScheme = Theme.of(context).colorScheme;
 
     return RefreshIndicator(
       onRefresh: _loadData,
@@ -1120,149 +1101,16 @@ class _CompanyHomePageState extends State<CompanyHomePage> {
 
             const SizedBox(height: 26),
 
-            // ==================================================
-            // GESTÃO
-            // ==================================================
-            const _SectionTitle(
-              title: 'Gestão',
-              subtitle: 'Acompanhe o desempenho da empresa',
+            const SizedBox(height: 20),
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.dashboard_outlined),
+                title: const Text('Acompanhar resultados'),
+                subtitle: const Text('Acesse o Dashboard pela seção Gestão.'),
+                trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                onTap: () => context.go('/company/manage'),
+              ),
             ),
-
-            const SizedBox(height: 14),
-
-            Row(
-              children: [
-                Expanded(
-                  child: _ActionCard(
-                    icon: Icons.dashboard_rounded,
-                    title: 'Dashboard',
-                    subtitle: 'Ver resultados e indicadores',
-                    onTap: () {
-                      context.push('/company/dashboard');
-                    },
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _ActionCard(
-                    icon: Icons.card_giftcard_rounded,
-                    title: 'Minhas recompensas',
-                    subtitle: 'Criar ou alterar recompensas',
-                    onTap: () {
-                      context.push('/company/rewards');
-                    },
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 16),
-
-            _buildProfileButton(),
-
-            const SizedBox(height: 24),
-
-            const SizedBox(height: 30),
-
-            // ==================================================
-            // RESUMO
-            // ==================================================
-            const _SectionTitle(
-              title: 'Resumo',
-              subtitle: 'Visão geral da sua empresa',
-            ),
-
-            const SizedBox(height: 14),
-
-            Row(
-              children: [
-                Expanded(
-                  child: _StatisticCard(
-                    icon: Icons.card_giftcard_rounded,
-                    value: _companyData!.benefitsUsed.toString(),
-                    label: 'Recompensas utilizadas',
-                  ),
-                ),
-
-                const SizedBox(width: 14),
-
-                Expanded(
-                  child: _StatisticCard(
-                    icon: Icons.people_alt_rounded,
-                    value: _companyData!.customersServed.toString(),
-                    label: 'Clientes atendidos',
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 14),
-
-            Row(
-              children: [
-                Expanded(
-                  child: _StatisticCard(
-                    icon: Icons.qr_code_2_rounded,
-                    value: _companyData!.totalQrCodes.toString(),
-                    label: 'QR Codes gerados',
-                  ),
-                ),
-
-                const SizedBox(width: 14),
-
-                Expanded(
-                  child: _StatisticCard(
-                    icon: Icons.check_circle_outline_rounded,
-                    value: _companyData!.usedQrCodes.toString(),
-                    label: 'QR Codes utilizados',
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 30),
-
-            // ==================================================
-            // BENEFÍCIOS
-            // ==================================================
-            Row(
-              children: [
-                const Expanded(
-                  child: _SectionTitle(
-                    title: 'Minhas recompensas',
-                    subtitle: 'Gerencie as recompensas oferecidos aos clientes',
-                  ),
-                ),
-
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 11,
-                    vertical: 7,
-                  ),
-                  decoration: BoxDecoration(
-                    color: colorScheme.primary.withValues(alpha: 0.10),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    '${_promotions.length}',
-                    style: TextStyle(
-                      color: colorScheme.primary,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 14),
-
-            // ==================================================
-            // LISTA DE BENEFÍCIOS
-            // ==================================================
-            if (_promotions.isEmpty)
-              _buildEmpty()
-            else
-              ..._promotions.map(_buildPromotionCard),
           ],
         ),
       ),
@@ -1375,26 +1223,6 @@ class _CompanyHomePageState extends State<CompanyHomePage> {
     );
   }
 
-  Widget _buildProfileButton() {
-    return SizedBox(
-      width: double.infinity,
-      height: 52,
-      child: OutlinedButton.icon(
-        onPressed: () async {
-          await context.push('/profile/editCompany');
-
-          if (!mounted) return;
-
-          //await _loadDashboard();
-        },
-        icon: const Icon(Icons.person_outline),
-        label: const Text(
-          'Dados cadastrais',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-        ),
-      ),
-    );
-  }
 
   // ============================================================
   // CARD BENEFÍCIO
@@ -1536,6 +1364,7 @@ class _CompanyHomePageState extends State<CompanyHomePage> {
                   giftDescription: gift?.toString(),
                   description: description?.toString(),
                   companyLogoUrl: _companyData?.companyLogoUrl,
+                  companyId: _companyData?.companyId,
                 ),
                 icon: const Icon(Icons.share_outlined),
               ),
@@ -1569,7 +1398,7 @@ class _CompanyHomePageState extends State<CompanyHomePage> {
               const SizedBox(width: 6),
 
               Text(
-                points == 0 ? 'Sem pontos (recompensa gratuita)' : '$points pontos necessários',
+                '$points pontos necessários',
                 style: const TextStyle(fontWeight: FontWeight.w600),
               ),
             ],
@@ -2035,55 +1864,6 @@ class _ActionCard extends StatelessWidget {
 // ═══════════════════════════════════════════════════════════
 // STATISTIC CARD
 // ═══════════════════════════════════════════════════════════
-
-class _StatisticCard extends StatelessWidget {
-  final IconData icon;
-  final String value;
-  final String label;
-
-  const _StatisticCard({
-    required this.icon,
-    required this.value,
-    required this.label,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return Container(
-      padding: const EdgeInsets.all(18),
-
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(20),
-      ),
-
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-
-        children: [
-          Icon(icon, color: colorScheme.primary, size: 24),
-
-          const SizedBox(height: 14),
-
-          Text(
-            value,
-            style: const TextStyle(fontSize: 27, fontWeight: FontWeight.bold),
-          ),
-
-          const SizedBox(height: 4),
-
-          Text(
-            label,
-            maxLines: 2,
-            style: TextStyle(fontSize: 12, color: colorScheme.onSurfaceVariant),
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 // ═══════════════════════════════════════════════════════════
 // COMPANY AVATAR

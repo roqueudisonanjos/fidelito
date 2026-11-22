@@ -5,6 +5,8 @@ import '../../services/location_service.dart';
 import '../../services/loyalty_program_service.dart';
 import '../../services/profile_service.dart';
 import '../../services/share_service.dart';
+import '../../services/company_offer_service.dart';
+import '../../core/config/business_categories.dart';
 
 class ExplorePage extends StatefulWidget {
   const ExplorePage({super.key});
@@ -15,6 +17,7 @@ class ExplorePage extends StatefulWidget {
 
 class _ExplorePageState extends State<ExplorePage> {
   final _service = LoyaltyProgramService();
+  final _offerService = CompanyOfferService();
   final _profileService = ProfileService();
   final _locationService = LocationService();
   final _cityController = TextEditingController();
@@ -27,6 +30,9 @@ class _ExplorePageState extends State<ExplorePage> {
   String? _error;
   List<Map<String, dynamic>> _companies = [];
   List<Map<String, dynamic>> _promotions = [];
+  List<Map<String, dynamic>> _offers = [];
+  String _categoryFilter = 'Todas';
+  Set<String> _customerInterests = <String>{};
 
   @override
   void initState() {
@@ -47,6 +53,7 @@ class _ExplorePageState extends State<ExplorePage> {
       final profile = await _profileService.getProfile();
       final savedCity = profile?['city']?.toString() ?? '';
       final savedState = profile?['state']?.toString() ?? '';
+      _customerInterests = Set<String>.from(profile?['customer_interests'] ?? const []);
       if (savedCity.trim().isNotEmpty) {
         _cityController.text = savedCity;
         _stateController.text = savedState;
@@ -89,6 +96,11 @@ class _ExplorePageState extends State<ExplorePage> {
     }
   }
 
+  Future<void> _openProfile() async {
+    final result = await context.push<bool>('/profile/edit');
+    if (result == true && mounted) await _initializeLocationAndLoad();
+  }
+
   Future<void> _load() async {
     if (!_locationInitialized && _loading) return;
     setState(() {
@@ -99,14 +111,51 @@ class _ExplorePageState extends State<ExplorePage> {
       final city = _cityController.text.trim();
       final state = _stateController.text.trim();
       final search = _searchController.text.trim();
-      final results = await Future.wait<List<Map<String, dynamic>>>([
-        _service.discoverCompanies(city: city, state: state, search: search),
-        _service.discoverPromotions(city: city, state: state, search: search),
+      final companiesFuture = _loadCompaniesSafely(city: city, state: state, search: search);
+      final promotionsFuture = _loadRewardsSafely(city: city, state: state, search: search);
+      final offersFuture = _offerService.getPublicOffers().catchError(
+        (_) => <Map<String, dynamic>>[],
+      );
+      final results = await Future.wait([
+        companiesFuture,
+        promotionsFuture,
+        offersFuture,
       ]);
       if (!mounted) return;
       setState(() {
         _companies = results[0];
         _promotions = results[1];
+        _companies.sort((a, b) {
+          final aInterested = _customerInterests.contains(a['category']?.toString());
+          final bInterested = _customerInterests.contains(b['category']?.toString());
+          return (bInterested ? 1 : 0).compareTo(aInterested ? 1 : 0);
+        });
+        _promotions.sort((a, b) {
+          final companyA = Map<String, dynamic>.from(a['company'] ?? a['companies'] ?? {});
+          final companyB = Map<String, dynamic>.from(b['company'] ?? b['companies'] ?? {});
+          final aInterested = _customerInterests.contains(companyA['category']?.toString());
+          final bInterested = _customerInterests.contains(companyB['category']?.toString());
+          return (bInterested ? 1 : 0).compareTo(aInterested ? 1 : 0);
+        });
+        _offers = results[2].where((offer) {
+          final company = Map<String, dynamic>.from(offer['companies'] ?? {});
+          final cityMatch = city.isEmpty || (company['city']?.toString().toLowerCase() ?? '').contains(city.toLowerCase());
+          final stateMatch = state.isEmpty || (company['state']?.toString().toUpperCase() ?? '') == state.toUpperCase();
+          final normalizedSearch = search.toLowerCase();
+          final searchMatch = search.isEmpty ||
+              (offer['title']?.toString().toLowerCase().contains(normalizedSearch) ?? false) ||
+              (offer['description']?.toString().toLowerCase().contains(normalizedSearch) ?? false) ||
+              (company['name']?.toString().toLowerCase().contains(normalizedSearch) ?? false) ||
+              (company['category']?.toString().toLowerCase().contains(normalizedSearch) ?? false);
+          return cityMatch && stateMatch && searchMatch;
+        }).toList();
+        _offers.sort((a, b) {
+          final companyA = Map<String, dynamic>.from(a['companies'] ?? {});
+          final companyB = Map<String, dynamic>.from(b['companies'] ?? {});
+          final aInterested = _customerInterests.contains(companyA['category']?.toString());
+          final bInterested = _customerInterests.contains(companyB['category']?.toString());
+          return (bInterested ? 1 : 0).compareTo(aInterested ? 1 : 0);
+        });
         _loading = false;
       });
     } catch (e) {
@@ -117,6 +166,63 @@ class _ExplorePageState extends State<ExplorePage> {
       });
     }
   }
+
+  Future<List<Map<String, dynamic>>> _loadCompaniesSafely({required String city, required String state, required String search}) async {
+    try {
+      return await _service.discoverCompanies(city: city, state: state, search: search);
+    } catch (_) {
+      return <Map<String, dynamic>>[];
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> _loadRewardsSafely({required String city, required String state, required String search}) async {
+    try {
+      return await _service.discoverPromotions(city: city, state: state, search: search);
+    } catch (_) {
+      return <Map<String, dynamic>>[];
+    }
+  }
+
+  List<Map<String, dynamic>> get _filteredCompanies => _companies.where((company) =>
+      _categoryFilter == 'Todas' || company['category']?.toString() == _categoryFilter).toList();
+
+  List<Map<String, dynamic>> get _filteredOffers => _offers.where((offer) {
+    final company = Map<String, dynamic>.from(offer['companies'] ?? {});
+    return _categoryFilter == 'Todas' || company['category']?.toString() == _categoryFilter;
+  }).toList();
+
+  List<Map<String, dynamic>> get _filteredPromotions => _promotions.where((promotion) {
+    final points = (promotion['points_required'] as num?)?.toInt() ?? 0;
+    if (points <= 0) return false; // Zero-point rewards are now represented as offers.
+    final company = Map<String, dynamic>.from(promotion['company'] ?? promotion['companies'] ?? {});
+    return _categoryFilter == 'Todas' || company['category']?.toString() == _categoryFilter;
+  }).toList();
+
+  Widget _buildCategoryFilters() {
+    return SizedBox(
+      height: 48,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        children: [
+          ChoiceChip(
+            label: const Text('Todas'),
+            selected: _categoryFilter == 'Todas',
+            onSelected: (_) => setState(() => _categoryFilter = 'Todas'),
+          ),
+          ...businessCategories.map((category) => Padding(
+            padding: const EdgeInsets.only(left: 6),
+            child: ChoiceChip(
+              label: Text(category),
+              selected: _categoryFilter == category,
+              onSelected: (_) => setState(() => _categoryFilter = category),
+            ),
+          )),
+        ],
+      ),
+    );
+  }
+
 
   Future<void> _openLoyaltyProgram(Map<String, dynamic> company) async {
     final left = await context.push<bool>(
@@ -157,9 +263,8 @@ class _ExplorePageState extends State<ExplorePage> {
         .join(' - ');
 
     return DefaultTabController(
-      length: 2,
+      length: 3,
       child: Scaffold(
-        appBar: AppBar(title: const Text('Explorar empresas')),
         body: Column(
           children: [
             Padding(
@@ -280,13 +385,12 @@ class _ExplorePageState extends State<ExplorePage> {
                 ],
               ),
             ),
+            _buildCategoryFilters(),
             const TabBar(
               tabs: [
                 Tab(icon: Icon(Icons.storefront_outlined), text: 'Empresas'),
-                Tab(
-                  icon: Icon(Icons.local_offer_outlined),
-                  text: 'Promoções e descontos',
-                ),
+                Tab(icon: Icon(Icons.campaign_outlined), text: 'Ofertas'),
+              Tab(icon: Icon(Icons.card_giftcard_outlined), text: 'Recompensas'),
               ],
               labelPadding: EdgeInsets.symmetric(horizontal: 8),
               isScrollable: false,
@@ -295,6 +399,7 @@ class _ExplorePageState extends State<ExplorePage> {
               child: TabBarView(
                 children: [
                   _buildCompanyResults(),
+                  _buildOfferResults(),
                   _buildPromotionResults(),
                 ],
               ),
@@ -317,15 +422,117 @@ class _ExplorePageState extends State<ExplorePage> {
       child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
         children: [
-          if (_companies.isEmpty)
+          if (_filteredCompanies.isEmpty)
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 24),
-              child: Center(
-                child: Text('Nenhuma empresa encontrada nesta localização.'),
-              ),
+              child: Center(child: Text('Nenhuma empresa encontrada nesta categoria/localização.')),
             )
           else
-            ..._companies.map(_companyCard),
+            ..._filteredCompanies.map(_companyCard),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOfferResults() {
+    if (_loading) return const Center(child: CircularProgressIndicator());
+    if (_error != null) return _buildRefreshableMessage(_error!);
+
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+        children: [
+          if (_filteredOffers.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 24),
+              child: Center(child: Text('Nenhuma oferta disponível nesta categoria.')),
+            ),
+          ..._filteredOffers.map((offer) {
+            final company = Map<String, dynamic>.from(offer['companies'] ?? {});
+            final image = offer['image_url']?.toString() ?? '';
+            final endDate = DateTime.tryParse(offer['ends_at']?.toString() ?? '')?.toLocal();
+            final validUntil = endDate == null
+                ? 'Validade não informada'
+                : 'Válida até ${endDate.day.toString().padLeft(2, '0')}/${endDate.month.toString().padLeft(2, '0')}/${endDate.year}';
+
+            return Card(
+              margin: const EdgeInsets.only(bottom: 12),
+              clipBehavior: Clip.antiAlias,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (image.isNotEmpty)
+                    Image.network(
+                      image,
+                      height: 170,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                    ),
+                  ListTile(
+                    leading: CircleAvatar(
+                      backgroundImage: (company['logo_url']?.toString() ?? '').isNotEmpty
+                          ? NetworkImage(company['logo_url'].toString())
+                          : null,
+                      child: (company['logo_url']?.toString() ?? '').isEmpty
+                          ? const Icon(Icons.storefront)
+                          : null,
+                    ),
+                    title: Text(company['name']?.toString() ?? 'Empresa'),
+                    subtitle: Text(
+                      [company['city'], company['state']]
+                          .where((value) => value != null && value.toString().isNotEmpty)
+                          .join(' - '),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          offer['title']?.toString() ?? 'Oferta',
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                        ),
+                        if ((offer['description']?.toString() ?? '').trim().isNotEmpty) ...[
+                          const SizedBox(height: 6),
+                          Text(offer['description'].toString()),
+                        ],
+                        const SizedBox(height: 6),
+                        Text(validUntil, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                onPressed: () => context.push('/empresa/${company['id']}?oferta=${offer['id']}'),
+                                icon: const Icon(Icons.store_outlined),
+                                label: const Text('Ver empresa'),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            IconButton(
+                              tooltip: 'Compartilhar oferta',
+                              onPressed: () => ShareService.shareOffer(
+                                companyName: company['name']?.toString() ?? 'Empresa',
+                                title: offer['title']?.toString() ?? 'Oferta',
+                                description: offer['description']?.toString(),
+                                companyLogoUrl: company['logo_url']?.toString(),
+                                companyId: company['id']?.toString(),
+                                offerId: offer['id']?.toString(),
+                              ),
+                              icon: const Icon(Icons.share_outlined),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
         ],
       ),
     );
@@ -343,7 +550,7 @@ class _ExplorePageState extends State<ExplorePage> {
       child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
         children: [
-          if (_promotions.isEmpty)
+          if (_filteredPromotions.isEmpty)
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 24),
               child: Center(
@@ -353,7 +560,7 @@ class _ExplorePageState extends State<ExplorePage> {
               ),
             )
           else
-            ..._promotions.map(_promotionCard),
+            ..._filteredPromotions.map(_promotionCard),
         ],
       ),
     );
@@ -423,6 +630,15 @@ class _ExplorePageState extends State<ExplorePage> {
                     style: TextStyle(
                       color: Theme.of(context).colorScheme.primary,
                     ),
+                  ),
+                ),
+              if ((company['category']?.toString() ?? '').trim().isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Chip(
+                    visualDensity: VisualDensity.compact,
+                    avatar: const Icon(Icons.category_outlined, size: 16),
+                    label: Text(company['category'].toString()),
                   ),
                 ),
               if ((company['description'] ?? '').toString().trim().isNotEmpty)
@@ -509,6 +725,7 @@ class _ExplorePageState extends State<ExplorePage> {
                     giftDescription: promotion['gift_description']?.toString(),
                     description: promotion['description']?.toString(),
                     companyLogoUrl: company['logo_url']?.toString(),
+                    companyId: company['id']?.toString(),
                   ),
                   icon: const Icon(Icons.share_outlined),
                 ),
@@ -534,9 +751,7 @@ class _ExplorePageState extends State<ExplorePage> {
               style: const TextStyle(color: Colors.grey),
             ),
             Text(
-              (promotion['points_required'] as num?)?.toInt() == 0
-                  ? 'Resgate gratuito • sem pontos'
-                  : 'Resgate: ${promotion['points_required'] ?? 0} pontos',
+            'Resgate: ${promotion['points_required'] ?? 1} pontos',
               style: const TextStyle(fontSize: 12, color: Colors.grey),
             ),
             const SizedBox(height: 10),

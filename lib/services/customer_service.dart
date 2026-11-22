@@ -39,7 +39,7 @@ class CustomerService {
   Future<Map<String, dynamic>?> getProfile() async {
     return await _supabase
         .from('profiles')
-        .select('id, full_name, phone, role, avatar_url')
+        .select('id, full_name, phone, role, avatar_url, city, state')
         .eq('id', userId)
         .maybeSingle();
   }
@@ -107,6 +107,8 @@ class CustomerService {
 
     final now = DateTime.now().toUtc();
     final active = response.where((item) {
+      final pointsRequired = (item['points_required'] as num?)?.toInt() ?? 0;
+      if (pointsRequired <= 0) return false;
       final starts = item['starts_at'] == null
           ? null
           : DateTime.tryParse(item['starts_at'].toString())?.toUtc();

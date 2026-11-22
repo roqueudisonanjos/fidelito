@@ -21,7 +21,6 @@ class _PromotionsPageState extends State<PromotionsPage> {
 
   List<Map<String, dynamic>> _promotions = [];
 
-  Set<String> _redeemedPromotionIds = {};
 
   int _points = 0;
 
@@ -59,20 +58,14 @@ class _PromotionsPageState extends State<PromotionsPage> {
         );
       }
 
-      final results = await Future.wait<dynamic>([
-        _service.getAvailablePromotions(widget.companyId),
-        _service.getMyRedeemedPromotionIds(companyId: widget.companyId),
-      ]);
-      final promotions = results[0] as List<Map<String, dynamic>>;
-      final redeemedPromotionIds = results[1] as Set<String>;
+      final promotions = await _service.getAvailablePromotions(widget.companyId);
 
       if (!mounted) return;
 
       setState(() {
         _points = account['points'] ?? 0;
 
-        _promotions = promotions;
-        _redeemedPromotionIds = redeemedPromotionIds;
+        _promotions = promotions.where((p) => ((p['points_required'] as num?)?.toInt() ?? 0) > 0).toList();
 
         _loading = false;
       });
@@ -89,6 +82,11 @@ class _PromotionsPageState extends State<PromotionsPage> {
   Future<void> _redeem(Map<String, dynamic> promotion) async {
     final pointsRequired = promotion['points_required'] as int;
 
+    if (pointsRequired <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Recompensas sem pontos agora são oferecidas na área de Ofertas.')));
+      return;
+    }
+
     if (_points < pointsRequired) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Você não possui pontos suficientes.')),
@@ -102,11 +100,7 @@ class _PromotionsPageState extends State<PromotionsPage> {
       builder: (context) {
         return AlertDialog(
           title: const Text('Confirmar resgate'),
-          content: Text(
-            pointsRequired == 0
-                ? 'Você deseja resgatar gratuitamente "${promotion['title']}"?'
-                : 'Você deseja trocar $pointsRequired pontos por "${promotion['title']}"?',
-          ),
+          content: Text('Você deseja trocar $pointsRequired pontos por "${promotion['title']}"?'),
           actions: [
             TextButton(
               onPressed: () {
@@ -199,11 +193,7 @@ class _PromotionsPageState extends State<PromotionsPage> {
                         final description = promotion['description'];
 
                         final pointsRequired = promotion['points_required'];
-                        final alreadyRedeemedFree =
-                            pointsRequired == 0 &&
-                            _redeemedPromotionIds.contains(promotion['id'].toString());
-                        final canRedeem =
-                            !alreadyRedeemedFree && _points >= pointsRequired;
+                        final canRedeem = pointsRequired > 0 && _points >= pointsRequired;
 
                         final type = promotion['type'];
 
@@ -248,9 +238,7 @@ class _PromotionsPageState extends State<PromotionsPage> {
                                 const SizedBox(height: 12),
 
                                 Text(
-                                  pointsRequired == 0
-                                      ? 'Grátis • sem pontos'
-                                      : '$pointsRequired pontos',
+                                  '$pointsRequired pontos',
                                   style: const TextStyle(
                                     fontWeight: FontWeight.bold,
                                   ),
@@ -264,19 +252,7 @@ class _PromotionsPageState extends State<PromotionsPage> {
                                     onPressed: canRedeem
                                         ? () => _redeem(promotion)
                                         : null,
-                                    style: ElevatedButton.styleFrom(
-                                      disabledBackgroundColor: alreadyRedeemedFree
-                                          ? Colors.grey.shade400
-                                          : null,
-                                      disabledForegroundColor: alreadyRedeemedFree
-                                          ? Colors.white
-                                          : null,
-                                    ),
-                                    child: Text(
-                                      alreadyRedeemedFree
-                                          ? 'Recompensa resgatada'
-                                          : 'Resgatar',
-                                    ),
+                                    child: const Text('Resgatar'),
                                   ),
                                 ),
                               ],

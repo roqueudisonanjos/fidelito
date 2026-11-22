@@ -8,7 +8,9 @@ import '../../core/config/app_config.dart';
 import '../../services/auth_service.dart';
 
 class LoginPage extends StatefulWidget {
-  const LoginPage({super.key});
+  const LoginPage({super.key, this.redirectTo});
+
+  final String? redirectTo;
 
   @override
   State<LoginPage> createState() => _LoginPageState();
@@ -67,7 +69,12 @@ class _LoginPageState extends State<LoginPage> {
         password: passwordController.text,
       );
       if (!mounted) return;
-      context.go('/home');
+      final destination = widget.redirectTo;
+      if (destination != null && (destination.startsWith('/empresa/') || destination.startsWith('/oferta/'))) {
+        context.go(destination);
+      } else {
+        context.go('/home');
+      }
     } on AuthException catch (e) {
       if (!mounted) return;
       setState(() => error = e.message);

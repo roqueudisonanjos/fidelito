@@ -27,12 +27,16 @@ class ShareService {
   static Future<void> shareCompanyClub({
     required String companyName,
     String? companyLogoUrl,
+    String? companyId,
   }) async {
     final name = companyName.trim().isEmpty ? 'nossa empresa' : companyName.trim();
+    final companyLink = companyId?.trim().isNotEmpty == true
+        ? '$appUrl/#/empresa/${companyId!.trim()}'
+        : appUrl;
     final message =
         '💚 Entre no clube de fidelidade de $name e tenha acesso a ofertas '
         'exclusivas, benefícios especiais e recompensas!\n\n'
-        'Faça parte do nosso clube pelo Fidelito: $appUrl';
+        'Faça parte do nosso clube pelo Fidelito: $companyLink';
 
     final image = await _loadCompanyLogo(companyLogoUrl) ??
         await _loadBrandLogo();
@@ -44,6 +48,29 @@ class ShareService {
     );
   }
 
+  static Future<void> shareOffer({
+    required String companyName,
+    required String title,
+    String? description,
+    String? companyLogoUrl,
+    String? companyId,
+    String? offerId,
+  }) async {
+    final extra = description?.trim().isNotEmpty == true ? '\n${description!.trim()}' : '';
+    final offerQuery = offerId?.trim().isNotEmpty == true
+        ? '?oferta=${Uri.encodeComponent(offerId!.trim())}'
+        : '';
+    final companyLink = offerId?.trim().isNotEmpty == true
+        ? '$appUrl/#/oferta/${Uri.encodeComponent(offerId!.trim())}'
+        : (companyId?.trim().isNotEmpty == true
+            ? '$appUrl/#/empresa/${companyId!.trim()}$offerQuery'
+            : appUrl);
+    final message = '📣 Oferta de $companyName!\n\n$title$extra\n\nConfira no Fidelito: $companyLink';
+    final image = await _loadCompanyLogo(companyLogoUrl) ?? await _loadBrandLogo();
+    await _shareWithImage(text: message, subject: 'Oferta de $companyName', image: image);
+  }
+
+
   static Future<void> sharePromotion({
     required String companyName,
     required String title,
@@ -52,7 +79,11 @@ class ShareService {
     String? giftDescription,
     String? description,
     String? companyLogoUrl,
+    String? companyId,
   }) async {
+    final companyLink = companyId?.trim().isNotEmpty == true
+        ? '$appUrl/#/empresa/${companyId!.trim()}'
+        : appUrl;
     final benefit = type == 'discount' &&
             discountPercentage != null &&
             discountPercentage.trim().isNotEmpty
@@ -68,7 +99,7 @@ class ShareService {
     final message =
         '🎁 Aproveite esta recompensa oferecida por $companyName!\n\n'
         '$title\n$benefit$extraDescription\n\n'
-        'Veja essa e outras oportunidades no Fidelito: $appUrl';
+        'Veja essa e outras oportunidades no Fidelito: $companyLink';
 
     final image = await _loadCompanyLogo(companyLogoUrl) ??
         await _loadBrandLogo();

@@ -21,6 +21,8 @@ class PromotionService {
 
       final now = DateTime.now().toUtc();
       return List<Map<String, dynamic>>.from(response).where((promotion) {
+        final points = (promotion['points_required'] as num?)?.toInt() ?? 0;
+        if (points <= 0) return false;
         final starts = promotion['starts_at'] == null
             ? null
             : DateTime.tryParse(promotion['starts_at'].toString())?.toUtc();
@@ -33,32 +35,6 @@ class PromotionService {
     } catch (e) {
       throw Exception('Não foi possível carregar as promoções.');
     }
-  }
-
-  /// IDs das promoções que o cliente autenticado já resgatou.
-  /// Não filtra por status: recompensas gratuitas continuam bloqueadas
-  /// mesmo depois de utilizadas ou canceladas.
-  Future<Set<String>> getMyRedeemedPromotionIds({String? companyId}) async {
-    final user = _supabase.auth.currentUser;
-    if (user == null) {
-      throw Exception('Usuário não autenticado.');
-    }
-
-    var query = _supabase
-        .from('promotion_redemptions')
-        .select('promotion_id')
-        .eq('customer_id', user.id);
-
-    if (companyId != null && companyId.isNotEmpty) {
-      query = query.eq('company_id', companyId);
-    }
-
-    final response = await query;
-    return response
-        .map((row) => row['promotion_id']?.toString())
-        .whereType<String>()
-        .where((id) => id.isNotEmpty)
-        .toSet();
   }
 
   // ============================================================
@@ -138,8 +114,8 @@ class PromotionService {
       throw Exception('Tipo de recompensa inválido.');
     }
 
-    if (pointsRequired < 0) {
-      throw Exception('A quantidade de pontos não pode ser negativa.');
+    if (pointsRequired <= 0) {
+      throw Exception('Recompensas devem exigir pelo menos 1 ponto. Promoções sem pontos devem ser criadas como ofertas.');
     }
 
     if (endsAt.isBefore(startsAt) || endsAt.isAtSameMomentAs(startsAt)) {
@@ -226,8 +202,8 @@ class PromotionService {
       throw Exception('Tipo de recompensa inválido.');
     }
 
-    if (pointsRequired < 0) {
-      throw Exception('A quantidade de pontos não pode ser negativa.');
+    if (pointsRequired <= 0) {
+      throw Exception('Recompensas devem exigir pelo menos 1 ponto. Promoções sem pontos devem ser criadas como ofertas.');
     }
 
     if (endsAt.isBefore(startsAt) || endsAt.isAtSameMomentAs(startsAt)) {

@@ -16,11 +16,19 @@ class AuthService {
     required String password,
     required String role,
     required String whatsapp,
+    List<String> customerInterests = const [],
+    String? businessCategory,
   }) {
     return _supabase.auth.signUp(
       email: email,
       password: password,
-      data: {'full_name': name, 'phone': whatsapp, 'role': role},
+      data: {
+        'full_name': name,
+        'phone': whatsapp,
+        'role': role,
+        'customer_interests': customerInterests,
+        'business_category': businessCategory,
+      },
     );
   }
 

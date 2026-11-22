@@ -10,6 +10,7 @@ import '../../pages/customer/customer_home_page.dart';
 import '../../pages/customer/explore_page.dart';
 import '../../pages/customer/my_loyalty_programs_page.dart';
 import '../../pages/customer/company_details_page.dart';
+import '../../pages/customer/shared_offer_details_page.dart';
 import '../../pages/customer/loyalty_program_page.dart';
 import '../../pages/company/company_home_page.dart';
 import '../../pages/company/company_setup_page.dart';
@@ -36,6 +37,8 @@ import '../../pages/auth/reset_password_page.dart';
 import '../../pages/company/company_customers_page.dart';
 import '../../pages/company/company_pending_page.dart';
 import '../../pages/company/company_suspended_page.dart';
+import '../../pages/company/company_offers_page.dart';
+import '../../pages/company/company_management_hub_page.dart';
 
 final authService = AuthService();
 final companyService = CompanyService();
@@ -65,6 +68,9 @@ final appRouter = GoRouter(
         return null;
       }
 
+      if (location.startsWith('/empresa/') || location.startsWith('/oferta/')) {
+        return '/login?next=${Uri.encodeComponent(state.uri.toString())}';
+      }
       return '/login';
     }
 
@@ -96,11 +102,7 @@ final appRouter = GoRouter(
 
         if (company == null) return '/company/setup';
 
-        if (company['active'] != true) {
-          return company['suspended_at'] != null
-              ? '/company/suspended'
-              : '/company/pending';
-        }
+        if (company['suspended_at'] != null) return '/company/suspended';
 
         return '/company';
       }
@@ -134,6 +136,8 @@ final appRouter = GoRouter(
           location == '/customer/explore' ||
           location == '/customer/my-loyalties' ||
           location == '/customer/company-details' ||
+          location.startsWith('/empresa/') ||
+          location.startsWith('/oferta/') ||
           location == '/customer/loyalty-program' ||
           location == '/customer/promotions' ||
           location == '/customer/my-benefits' ||
@@ -176,13 +180,9 @@ final appRouter = GoRouter(
         return '/company/setup';
       }
 
-      if (company['active'] != true) {
-        final suspended = company['suspended_at'] != null;
-        final blockedLocation = suspended
-            ? '/company/suspended'
-            : '/company/pending';
-        if (location == blockedLocation) return null;
-        return blockedLocation;
+      if (company['suspended_at'] != null) {
+        if (location == '/company/suspended') return null;
+        return '/company/suspended';
       }
 
       // -------------------------------------------------------
@@ -202,7 +202,9 @@ final appRouter = GoRouter(
           location == '/company/rewards' ||
           location == '/company/reports' ||
           location == '/profile/editCompany' ||
-          location == '/company/customers') {
+          location == '/company/customers' ||
+          location == '/company/offers' ||
+          location == '/company/manage') {
         return null;
       }
 
@@ -229,7 +231,7 @@ final appRouter = GoRouter(
     GoRoute(
       path: '/login',
       builder: (context, state) {
-        return const LoginPage();
+        return LoginPage(redirectTo: state.uri.queryParameters['next']);
       },
     ),
 
@@ -258,6 +260,21 @@ final appRouter = GoRouter(
       path: '/customer/my-loyalties',
       builder: (context, state) => const MyLoyaltyProgramsPage(),
     ),
+    GoRoute(
+      path: '/empresa/:companyId',
+      builder: (context, state) => CompanyDetailsPage(
+        companyId: state.pathParameters['companyId'],
+        offerId: state.uri.queryParameters['oferta'],
+      ),
+    ),
+
+    GoRoute(
+      path: '/oferta/:offerId',
+      builder: (context, state) => SharedOfferDetailsPage(
+        offerId: state.pathParameters['offerId']!,
+      ),
+    ),
+
     GoRoute(
       path: '/customer/company-details',
       builder: (context, state) => CompanyDetailsPage(
@@ -304,6 +321,14 @@ final appRouter = GoRouter(
       },
     ),
 
+    GoRoute(
+      path: '/company/manage',
+      builder: (context, state) => const CompanyManagementHubPage(),
+    ),
+    GoRoute(
+      path: '/company/offers',
+      builder: (context, state) => const CompanyOffersPage(),
+    ),
     GoRoute(
       path: '/company/generate-qr',
       builder: (context, state) {

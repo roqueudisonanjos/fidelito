@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../services/profile_service.dart';
+import '../../core/config/business_categories.dart';
 import '../../services/location_service.dart';
 import '../../services/image_upload_service.dart';
 import '../../widgets/change_password_section.dart';
@@ -30,6 +31,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
   bool _loading = true;
   bool _uploadingPhoto = false;
   String? _avatarUrl;
+  final Set<String> _customerInterests = <String>{};
   final ImageUploadService _imageUploadService = ImageUploadService();
   bool _saving = false;
 
@@ -66,6 +68,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
       _cityController.text = profile?['city']?.toString() ?? '';
       _stateController.text = profile?['state']?.toString() ?? '';
       _avatarUrl = profile?['avatar_url']?.toString();
+      _customerInterests
+        ..clear()
+        ..addAll(List<String>.from(profile?['customer_interests'] ?? const []).where(businessCategories.contains));
 
       setState(() {
         _loading = false;
@@ -116,6 +121,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
         city: _cityController.text,
         state: _stateController.text,
         avatarUrl: _avatarUrl,
+        customerInterests: _customerInterests.toList(),
       );
 
       if (!mounted) return;
@@ -185,7 +191,17 @@ class _EditProfilePageState extends State<EditProfilePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Dados cadastrais')),
+      appBar: AppBar(
+        title: const Text('Dados cadastrais'),
+        actions: [
+          TextButton(
+            onPressed: _saving || _loading ? null : _save,
+            child: _saving
+                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                : const Text('Salvar'),
+          ),
+        ],
+      ),
       body: _buildBody(),
     );
   }
@@ -365,6 +381,20 @@ class _EditProfilePageState extends State<EditProfilePage> {
               ),
             ),
 
+            const SizedBox(height: 18),
+            Text('Categorias de interesse', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 6),
+            const Text('Escolha categorias para receber sugestões de empresas e ofertas mais relevantes. Você continuará podendo explorar todas as categorias.', style: TextStyle(color: Colors.grey)),
+            const SizedBox(height: 8),
+            Wrap(spacing: 8, runSpacing: 4, children: businessCategories.map((category) => FilterChip(
+              label: Text(category),
+              selected: _customerInterests.contains(category),
+              onSelected: _saving ? null : (selected) => setState(() {
+                if (selected) { _customerInterests.add(category); } else { _customerInterests.remove(category); }
+              }),
+            )).toList()),
+            const SizedBox(height: 18),
+
             const ChangePasswordSection(),
 
             const SizedBox(height: 20),
@@ -372,27 +402,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
             const DeleteAccountSection(isCompany: false),
 
             const SizedBox(height: 28),
-
-            SizedBox(
-              width: double.infinity,
-              height: 54,
-              child: ElevatedButton(
-                onPressed: _saving ? null : _save,
-                child: _saving
-                    ? const SizedBox(
-                        width: 22,
-                        height: 22,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Text(
-                        'Salvar alterações',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-              ),
-            ),
           ],
         ),
       ),

@@ -10,6 +10,8 @@ import '../../services/promotion_service.dart';
 import '../../services/support_service.dart';
 import '../../services/share_service.dart';
 import '../../services/notification_service.dart';
+import '../../services/company_offer_service.dart';
+import '../../services/loyalty_program_service.dart';
 import '../../services/qr_service.dart';
 import '../../widgets/help_tutorial_dialog.dart';
 
@@ -28,6 +30,8 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
   final AuthService authService = AuthService();
 
   final NotificationService _notificationService = NotificationService();
+  final CompanyOfferService _companyOfferService = CompanyOfferService();
+  final LoyaltyProgramService _loyaltyProgramService = LoyaltyProgramService();
   late Future<int> _unreadNotificationsFuture;
 
   bool loading = true;
@@ -38,8 +42,9 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
   Map<String, int> companyPoints = {};
 
   List<Promotion> promotions = [];
+  List<Map<String, dynamic>> offers = [];
+  List<Map<String, dynamic>> companies = [];
 
-  Set<String> redeemedPromotionIds = {};
 
   List<LoyaltyTransaction> transactions = [];
 
@@ -55,6 +60,12 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
 
   Future<void> redeemPromotion(Promotion promotion) async {
     final availablePoints = companyPoints[promotion.companyId] ?? 0;
+    if (promotion.pointsRequired <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Recompensas sem pontos agora são ofertas.')),
+      );
+      return;
+    }
     if (availablePoints < promotion.pointsRequired) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Você não possui pontos suficientes.')),
@@ -69,9 +80,7 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
         return AlertDialog(
           title: const Text('Resgatar recompensa?'),
           content: Text(
-            promotion.pointsRequired == 0
-                ? 'Você vai resgatar gratuitamente:\n\n${promotion.title}'
-                : 'Você vai utilizar ${promotion.pointsRequired} pontos para resgatar:\n\n${promotion.title}',
+            'Você vai utilizar ${promotion.pointsRequired} pontos para resgatar:\n\n${promotion.title}',
           ),
           actions: [
             TextButton(
@@ -133,6 +142,90 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
     }
   }
 
+  String _normalizeLocation(String? value) {
+    var normalized = (value ?? '').trim().toLowerCase();
+    const replacements = {
+      'á': 'a', 'à': 'a', 'ã': 'a', 'â': 'a', 'ä': 'a',
+      'é': 'e', 'è': 'e', 'ê': 'e', 'ë': 'e',
+      'í': 'i', 'ì': 'i', 'î': 'i', 'ï': 'i',
+      'ó': 'o', 'ò': 'o', 'õ': 'o', 'ô': 'o', 'ö': 'o',
+      'ú': 'u', 'ù': 'u', 'û': 'u', 'ü': 'u', 'ç': 'c',
+    };
+    replacements.forEach((from, to) => normalized = normalized.replaceAll(from, to));
+    return normalized.replaceAll(RegExp(r'\s+'), ' ');
+  }
+
+  bool _isSameCustomerCity(Map<String, dynamic>? company, Map<String, dynamic>? profile) {
+    final customerCity = _normalizeLocation(profile?['city']?.toString());
+    final companyCity = _normalizeLocation(company?['city']?.toString());
+    final customerState = _normalizeLocation(profile?['state']?.toString());
+    final companyState = _normalizeLocation(company?['state']?.toString());
+
+    if (customerCity.isEmpty || companyCity.isEmpty || customerCity != companyCity) {
+      return false;
+    }
+    // Use UF/full-state equivalence where available; city is the primary filter.
+    const stateAliases = {
+      'para': 'pa', 'pa': 'pa',
+      'sao paulo': 'sp', 'sp': 'sp', 'rio de janeiro': 'rj', 'rj': 'rj',
+      'minas gerais': 'mg', 'mg': 'mg', 'bahia': 'ba', 'ba': 'ba',
+      'amazonas': 'am', 'am': 'am', 'acre': 'ac', 'ac': 'ac',
+      'alagoas': 'al', 'al': 'al', 'amapa': 'ap', 'ap': 'ap',
+      'ceara': 'ce', 'ce': 'ce', 'distrito federal': 'df', 'df': 'df',
+      'espirito santo': 'es', 'es': 'es', 'goias': 'go', 'go': 'go',
+      'maranhao': 'ma', 'ma': 'ma', 'mato grosso': 'mt', 'mt': 'mt',
+      'mato grosso do sul': 'ms', 'ms': 'ms', 'paraiba': 'pb', 'pb': 'pb',
+      'pernambuco': 'pe', 'pe': 'pe', 'piaui': 'pi', 'pi': 'pi',
+      'rio grande do norte': 'rn', 'rn': 'rn', 'rio grande do sul': 'rs', 'rs': 'rs',
+      'rondonia': 'ro', 'ro': 'ro', 'roraima': 'rr', 'rr': 'rr',
+      'santa catarina': 'sc', 'sc': 'sc',
+      'sergipe': 'se', 'se': 'se', 'tocantins': 'to', 'to': 'to',
+    };
+    final normalizedCustomerState = stateAliases[customerState] ?? customerState;
+    final normalizedCompanyState = stateAliases[companyState] ?? companyState;
+    return customerState.isEmpty || companyState.isEmpty || normalizedCustomerState == normalizedCompanyState;
+  }
+
+  Future<List<Map<String, dynamic>>> _loadOffersSafely(Map<String, dynamic>? profile) async {
+    try {
+      final results = await _companyOfferService.getPublicOffers();
+      return results.where((offer) {
+        final company = Map<String, dynamic>.from(offer['companies'] ?? {});
+        return _isSameCustomerCity(company, profile);
+      }).toList();
+    } catch (_) {
+      // Offers are supplementary to the customer's core loyalty data.
+      // A failure loading them should not prevent the Home from opening.
+      return <Map<String, dynamic>>[];
+    }
+  }
+
+
+  Future<List<Map<String, dynamic>>> _loadCompaniesSafely(Map<String, dynamic>? profile) async {
+    try {
+      // Discovery is restricted to the customer's exact city on the Home page.
+      if ((profile?['city']?.toString().trim() ?? '').isEmpty) {
+        return <Map<String, dynamic>>[];
+      }
+      final results = await _loyaltyProgramService.discoverCompanies(
+        city: null,
+        state: null,
+      );
+      final localResults = results.where((company) => _isSameCustomerCity(company, profile)).toList();
+      final interests = Set<String>.from(profile?['customer_interests'] ?? const []);
+      localResults.sort((a, b) {
+        final matchA = interests.contains(a['category']?.toString()) ? 1 : 0;
+        final matchB = interests.contains(b['category']?.toString()) ? 1 : 0;
+        return matchB.compareTo(matchA);
+      });
+      return localResults;
+    } catch (_) {
+      // Discovery is secondary to the customer's loyalty information.
+      return <Map<String, dynamic>>[];
+    }
+  }
+
+
   Future<void> loadData() async {
     setState(() {
       loading = true;
@@ -140,22 +233,31 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
     });
 
     try {
+      final profile = await customerService.getProfile();
       final results = await Future.wait([
-        customerService.getProfile(),
         customerService.getPointsByCompany(),
         customerService.getPromotions(),
         customerService.getTransactions(),
-        promotionService.getMyRedeemedPromotionIds(),
+        _loadOffersSafely(profile),
       ]);
 
-      final profile = results[0] as Map<String, dynamic>?;
+      final loadedCompanyPoints = results[0] as Map<String, int>;
 
-      final loadedCompanyPoints = results[1] as Map<String, int>;
+      final loadedPromotions = (results[1] as List<Promotion>)
+          .where((promotion) => promotion.pointsRequired > 0)
+          .toList();
 
-      final loadedPromotions = results[2] as List<Promotion>;
-
-      final loadedTransactions = results[3] as List<LoyaltyTransaction>;
-      final loadedRedeemedPromotionIds = results[4] as Set<String>;
+      final loadedTransactions = results[2] as List<LoyaltyTransaction>;
+      final loadedOffers = results[3] as List<Map<String, dynamic>>;
+      final loadedCompanies = await _loadCompaniesSafely(profile);
+      final loadedInterests = Set<String>.from(profile?['customer_interests'] ?? const []);
+      loadedOffers.sort((a, b) {
+        final categoryA = (a['companies']?['category']?.toString() ?? '');
+        final categoryB = (b['companies']?['category']?.toString() ?? '');
+        final scoreA = loadedInterests.contains(categoryA) ? 1 : 0;
+        final scoreB = loadedInterests.contains(categoryB) ? 1 : 0;
+        return scoreB.compareTo(scoreA);
+      });
 
       if (!mounted) return;
 
@@ -169,7 +271,8 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
 
         transactions = loadedTransactions;
 
-        redeemedPromotionIds = loadedRedeemedPromotionIds;
+        offers = loadedOffers;
+        companies = loadedCompanies;
 
         loading = false;
       });
@@ -250,7 +353,7 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
         ],
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      floatingActionButton: FloatingActionButton.large(
+      floatingActionButton: FloatingActionButton(
         tooltip: 'Escanear QR Code',
         onPressed: _openQrOptions,
         child: const Icon(Icons.qr_code_scanner),
@@ -350,9 +453,24 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
           ),
         ),
 
-        const SizedBox(height: 28),
+        const SizedBox(height: 16),
+
+        _buildCustomerOverview(),
+
+        const SizedBox(height: 18),
+
+        const SizedBox(height: 24),
+
+        _buildOffers(),
+
+        const SizedBox(height: 24),
+
+        _buildCompanies(),
+
+        const SizedBox(height: 24),
 
         _buildPromotions(),
+
 
         const SizedBox(height: 32),
 
@@ -376,6 +494,51 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
     );
   }
 
+  Widget _buildCustomerOverview() {
+    final totalPoints = companyPoints.values.fold<int>(0, (sum, points) => sum + points);
+    final activePrograms = companyPoints.keys.length;
+    return Row(
+      children: [
+        Expanded(
+          child: Card(
+            margin: EdgeInsets.zero,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.stars_rounded, size: 22),
+                  const SizedBox(height: 8),
+                  Text('$totalPoints', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                  const Text('Pontos acumulados', maxLines: 1, overflow: TextOverflow.ellipsis),
+                ],
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Card(
+            margin: EdgeInsets.zero,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.loyalty_outlined, size: 22),
+                  const SizedBox(height: 8),
+                  Text('$activePrograms', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                  const Text('Programas ativos', maxLines: 1, overflow: TextOverflow.ellipsis),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+
   Widget _buildBottomNavigationBar() {
     return BottomAppBar(
       shape: const CircularNotchedRectangle(),
@@ -386,12 +549,12 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
             IconButton(
-              tooltip: 'Explorar empresas',
+              tooltip: 'Descobrir empresas e ofertas',
               onPressed: () => context.push('/customer/explore'),
               icon: const Icon(Icons.explore_outlined),
             ),
             IconButton(
-              tooltip: 'Minhas fidelidades',
+              tooltip: 'Programas de fidelidade',
               onPressed: () => context.push('/customer/my-loyalties'),
               icon: const Icon(Icons.loyalty_outlined),
             ),
@@ -516,6 +679,154 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
     if (result == true) await loadData();
   }
 
+  Widget _buildOffers() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Ofertas para descobrir', style: TextStyle(fontSize: 21, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 14),
+        if (offers.isEmpty)
+          const Card(child: Padding(padding: EdgeInsets.all(18), child: Text('Nenhuma oferta disponível no momento.')))
+        else
+          SizedBox(
+            height: 360,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: offers.length > 10 ? 10 : offers.length,
+              separatorBuilder: (_, _) => const SizedBox(width: 12),
+              itemBuilder: (context, index) {
+                final offer = offers[index];
+                final company = Map<String, dynamic>.from(offer['companies'] ?? {});
+                return SizedBox(
+                  width: 270,
+                  child: Card(
+                    clipBehavior: Clip.antiAlias,
+                    child: InkWell(
+                      onTap: () => context.push('/empresa/${company['id']}?oferta=${offer['id']}'),
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        if ((offer['image_url']?.toString() ?? '').isNotEmpty)
+                          Image.network(offer['image_url'].toString(), height: 130, width: 270, fit: BoxFit.cover,
+                            errorBuilder: (_, _, _) => const SizedBox(height: 130)),
+                        Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            Text(offer['title']?.toString() ?? 'Oferta', maxLines: 2, overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                            const SizedBox(height: 6),
+                            Text(company['name']?.toString() ?? 'Empresa', maxLines: 1, overflow: TextOverflow.ellipsis),
+                            const SizedBox(height: 6),
+                            if ((offer['description']?.toString() ?? '').trim().isNotEmpty)
+                              Text(offer['description'].toString(), maxLines: 2, overflow: TextOverflow.ellipsis),
+                            const SizedBox(height: 8),
+                            Row(children: [
+                              const Expanded(child: Text('Ver oferta', style: TextStyle(fontWeight: FontWeight.w600))),
+                              IconButton(tooltip: 'Compartilhar oferta', visualDensity: VisualDensity.compact, constraints: const BoxConstraints.tightFor(width: 36, height: 36), padding: EdgeInsets.zero, onPressed: () => ShareService.shareOffer(
+                                companyName: company['name']?.toString() ?? 'Empresa',
+                                title: offer['title']?.toString() ?? 'Oferta',
+                                description: offer['description']?.toString(),
+                                companyLogoUrl: company['logo_url']?.toString(),
+                                companyId: company['id']?.toString(),
+                                offerId: offer['id']?.toString(),
+                              ), icon: const Icon(Icons.share_outlined)),
+                            ]),
+                          ]),
+                        ),
+                      ]),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        const SizedBox(height: 8),
+        Align(alignment: Alignment.centerRight, child: TextButton.icon(
+          onPressed: () => context.push('/customer/explore'),
+          icon: const Icon(Icons.arrow_forward), label: const Text('Ver todas as ofertas e empresas')),
+        ),
+      ],
+    );
+  }
+
+
+  Widget _buildCompanies() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Empresas para conhecer', style: TextStyle(fontSize: 21, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 12),
+        if (companies.isEmpty)
+          const Card(child: Padding(padding: EdgeInsets.all(18), child: Text('Ainda não há empresas disponíveis para mostrar.')))
+        else
+          SizedBox(
+            height: 250,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: companies.length > 10 ? 10 : companies.length,
+              separatorBuilder: (_, _) => const SizedBox(width: 10),
+              itemBuilder: (context, index) {
+                final company = companies[index];
+                final logo = company['logo_url']?.toString() ?? '';
+                final location = [company['city'], company['state']]
+                    .where((value) => value != null && value.toString().isNotEmpty)
+                    .join(' - ');
+                return SizedBox(
+                  width: 220,
+                  child: Card(
+                    clipBehavior: Clip.antiAlias,
+                    child: InkWell(
+                      onTap: () => context.push('/customer/company-details', extra: company),
+                      child: Padding(
+                        padding: const EdgeInsets.all(14),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Center(child: CircleAvatar(radius: 32, backgroundImage: logo.isNotEmpty ? NetworkImage(logo) : null, child: logo.isEmpty ? const Icon(Icons.storefront_outlined, size: 30) : null)),
+                            const SizedBox(height: 12),
+                            Text(company['name']?.toString() ?? 'Empresa', maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                            if ((company['category']?.toString() ?? '').trim().isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 6),
+                                child: Chip(
+                                  visualDensity: VisualDensity.compact,
+                                  avatar: const Icon(Icons.category_outlined, size: 16),
+                                  label: Text(
+                                    company['category'].toString(),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ),
+                            if (location.isNotEmpty)
+                              Padding(padding: const EdgeInsets.only(top: 4), child: Text(location, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12, color: Colors.grey))),
+                            const Spacer(),
+                            Row(
+                              children: [
+                                const Expanded(child: Text('Ver empresa', style: TextStyle(fontWeight: FontWeight.w600))),
+                                IconButton(
+                                  tooltip: 'Compartilhar empresa',
+                                  visualDensity: VisualDensity.compact,
+                                  constraints: const BoxConstraints.tightFor(width: 36, height: 36),
+                                  padding: EdgeInsets.zero,
+                                  onPressed: () => ShareService.shareCompanyClub(companyName: company['name']?.toString() ?? 'Empresa', companyLogoUrl: logo, companyId: company['id']?.toString()),
+                                  icon: const Icon(Icons.share_outlined),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        Align(alignment: Alignment.centerRight, child: TextButton.icon(onPressed: () => context.push('/customer/explore'), icon: const Icon(Icons.arrow_forward), label: const Text('Descobrir mais empresas'))),
+      ],
+    );
+  }
+
+
   Widget _buildPromotions() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -560,7 +871,6 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
                 extra: {
                   'promotions': promotions,
                   'companyPoints': companyPoints,
-                  'redeemedPromotionIds': redeemedPromotionIds,
                 },
               ),
               icon: const Icon(Icons.arrow_forward),
@@ -574,11 +884,7 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
 
   Widget _buildPromotionCard(Promotion promotion) {
     final availablePoints = companyPoints[promotion.companyId] ?? 0;
-    final alreadyRedeemedFree =
-        promotion.pointsRequired == 0 &&
-        redeemedPromotionIds.contains(promotion.id);
-    final canRedeem =
-        !alreadyRedeemedFree && availablePoints >= promotion.pointsRequired;
+    final canRedeem = promotion.pointsRequired > 0 && availablePoints >= promotion.pointsRequired;
 
     String rewardText;
 
@@ -678,6 +984,7 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
                       giftDescription: promotion.giftDescription,
                       description: promotion.description,
                       companyLogoUrl: promotion.companyLogoUrl,
+                      companyId: promotion.companyId,
                     ),
                     icon: const Icon(Icons.share_outlined),
                   ),
@@ -693,7 +1000,7 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
                           : Colors.grey.withValues(alpha: .12),
                     ),
                     child: Text(
-                      promotion.pointsRequired == 0 ? 'Grátis' : '${promotion.pointsRequired} pts',
+                      '${promotion.pointsRequired} pts',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         color: canRedeem ? Colors.green : Colors.grey,
@@ -732,17 +1039,11 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
               const SizedBox(height: 12),
 
               Text(
-                alreadyRedeemedFree
-                    ? 'Você já resgatou esta recompensa gratuita.'
-                    : canRedeem
-                    ? 'Você já pode resgatar esta recompensa.'
-                    : 'Faltam ${promotion.pointsRequired - availablePoints} pontos nesta empresa.',
+              canRedeem
+                ? 'Você já pode resgatar esta recompensa.'
+                : 'Faltam ${promotion.pointsRequired - availablePoints} pontos nesta empresa.',
                 style: TextStyle(
-                  color: alreadyRedeemedFree
-                      ? Colors.grey
-                      : canRedeem
-                      ? Colors.green
-                      : Colors.grey,
+              color: canRedeem ? Colors.green : Colors.grey,
                 ),
               ),
 
@@ -755,19 +1056,11 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
                       ? () => redeemPromotion(promotion)
                       : null,
                   style: ElevatedButton.styleFrom(
-                    disabledBackgroundColor: alreadyRedeemedFree
-                        ? Colors.grey.shade400
-                        : null,
-                    disabledForegroundColor: alreadyRedeemedFree
-                        ? Colors.white
-                        : null,
+                    disabledBackgroundColor: null,
+                    disabledForegroundColor: null,
                   ),
                   child: Text(
-                    alreadyRedeemedFree
-                        ? 'Recompensa resgatada'
-                        : canRedeem
-                        ? 'Resgatar recompensa'
-                        : 'Pontos insuficientes',
+            canRedeem ? 'Resgatar recompensa' : 'Pontos insuficientes',
                   ),
                 ),
               ),

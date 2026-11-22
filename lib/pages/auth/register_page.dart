@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../services/auth_service.dart';
+import '../../core/config/business_categories.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -21,6 +22,8 @@ class _RegisterPageState extends State<RegisterPage> {
   final authService = AuthService();
 
   String role = 'customer';
+  final Set<String> customerInterests = {};
+  String? businessCategory;
   bool loading = false;
   bool obscurePassword = true;
   String? message;
@@ -56,6 +59,11 @@ class _RegisterPageState extends State<RegisterPage> {
       return;
     }
 
+    if (role == 'company_owner' && businessCategory == null) {
+      setState(() { message = 'Selecione a categoria da empresa.'; });
+      return;
+    }
+
     setState(() {
       loading = true;
       message = null;
@@ -68,6 +76,8 @@ class _RegisterPageState extends State<RegisterPage> {
         password: password,
         role: role,
         whatsapp: whatsappDigits,
+        customerInterests: role == 'customer' ? customerInterests.toList() : const [],
+        businessCategory: role == 'company_owner' ? businessCategory : null,
       );
 
       if (!mounted) return;
@@ -246,6 +256,51 @@ class _RegisterPageState extends State<RegisterPage> {
                         ],
                       ),
                     ),
+
+                    if (role == 'customer') ...[
+                      const SizedBox(height: 12),
+                      const Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text('Seus interesses', style: TextStyle(fontWeight: FontWeight.bold)),
+                      ),
+                      const SizedBox(height: 6),
+                      const Text('Escolha categorias para receber ofertas mais relevantes.', style: TextStyle(fontSize: 13)),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 4,
+                        children: businessCategories.map((category) => FilterChip(
+                          label: Text(category),
+                          selected: customerInterests.contains(category),
+                          onSelected: loading ? null : (selected) {
+                            setState(() {
+                              if (selected) {
+                                customerInterests.add(category);
+                              } else {
+                                customerInterests.remove(category);
+                              }
+                            });
+                          },
+                        )).toList(),
+                      ),
+                    ],
+                    if (role == 'company_owner') ...[
+                      const SizedBox(height: 12),
+                      const Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text('Categoria da empresa *', style: TextStyle(fontWeight: FontWeight.bold)),
+                      ),
+                      const SizedBox(height: 8),
+                      DropdownButtonFormField<String>(
+                        initialValue: businessCategory,
+                        decoration: const InputDecoration(labelText: 'Selecione a categoria'),
+                        items: businessCategories.map((category) => DropdownMenuItem(
+                          value: category, child: Text(category),
+                        )).toList(),
+                        onChanged: loading ? null : (value) => setState(() => businessCategory = value),
+                        validator: role == 'company_owner' ? (value) => value == null ? 'Selecione uma categoria.' : null : null,
+                      ),
+                    ],
 
                     if (message != null) ...[
                       const SizedBox(height: 16),

@@ -17,7 +17,7 @@ class CompanyService {
     final company = await _supabase
         .from('companies')
         .select(
-          'id, owner_id, name, description, phone, address, city, state, logo_url, instagram_username, tiktok_username, active, suspended_at',
+          'id, owner_id, name, description, phone, address, city, state, category, logo_url, instagram_username, tiktok_username, active, suspended_at',
         )
         .eq('owner_id', user.id)
         .maybeSingle();
@@ -31,6 +31,7 @@ class CompanyService {
 
   Future<void> updateCompany({
     required String name,
+    String? category,
     String? description,
     String? phone,
     String? address,
@@ -50,6 +51,7 @@ class CompanyService {
       'update_my_company',
       params: {
         'p_name': name.trim(),
+        'p_category': category,
         'p_description': description,
         'p_phone': phone,
         'p_address': address,
@@ -69,6 +71,7 @@ class CompanyService {
 
   Future<Map<String, dynamic>> createCompany({
     required String name,
+    required String category,
     String? description,
     String? phone,
     String? address,
@@ -79,6 +82,7 @@ class CompanyService {
       'create_company',
       params: {
         'p_name': name,
+        'p_category': category,
         'p_description': description,
         'p_phone': phone,
         'p_address': address,

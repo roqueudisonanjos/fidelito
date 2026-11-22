@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+
+import '../../widgets/company/company_bottom_navigation.dart';
+import '../../widgets/company/company_app_bar_actions.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../services/company_service.dart';
+import '../../core/config/business_categories.dart';
 import '../../services/image_upload_service.dart';
 import '../../widgets/change_password_section.dart';
 import '../../widgets/delete_account_section.dart';
@@ -34,6 +38,7 @@ class _CompanySetupPageState extends State<CompanySetupPage> {
   bool _loading = true;
   bool _uploadingLogo = false;
   String? _logoUrl;
+  String? _businessCategory;
   final ImageUploadService _imageUploadService = ImageUploadService();
 
   bool _saving = false;
@@ -50,6 +55,7 @@ class _CompanySetupPageState extends State<CompanySetupPage> {
   void initState() {
     super.initState();
 
+    _businessCategory = Supabase.instance.client.auth.currentUser?.userMetadata?['business_category']?.toString();
     _loadCompany();
   }
 
@@ -75,6 +81,7 @@ class _CompanySetupPageState extends State<CompanySetupPage> {
         _stateController.text = company['state']?.toString() ?? '';
         _instagramController.text = company['instagram_username']?.toString() ?? '';
         _tiktokController.text = company['tiktok_username']?.toString() ?? '';
+        _businessCategory = company['category']?.toString() ?? _businessCategory;
         _logoUrl = company['logo_url']?.toString();
 
         setState(() {
@@ -163,6 +170,10 @@ class _CompanySetupPageState extends State<CompanySetupPage> {
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
+    if (_businessCategory == null) {
+      setState(() => _error = 'Selecione a categoria da empresa.');
+      return;
+    }
 
     setState(() {
       _saving = true;
@@ -174,6 +185,7 @@ class _CompanySetupPageState extends State<CompanySetupPage> {
     try {
       if (_editing) {
         await _companyService.updateCompany(
+          category: _businessCategory,
           name: _nameController.text.trim(),
           description: _descriptionController.text.trim().isEmpty
               ? null
@@ -207,8 +219,9 @@ class _CompanySetupPageState extends State<CompanySetupPage> {
         return;
       }
 
-      // Cria a empresa. Ela deve permanecer pendente de aprovação.
+      // Cria a empresa e libera o acesso automaticamente.
       await _companyService.createCompany(
+        category: _businessCategory!,
         name: _nameController.text.trim(),
         description: _descriptionController.text.trim().isEmpty
             ? null
@@ -232,6 +245,7 @@ class _CompanySetupPageState extends State<CompanySetupPage> {
           _instagramController.text.trim().isNotEmpty ||
           _tiktokController.text.trim().isNotEmpty) {
         await _companyService.updateCompany(
+          category: _businessCategory,
           name: _nameController.text.trim(),
           description: _descriptionController.text.trim().isEmpty
           ? null
@@ -342,7 +356,19 @@ class _CompanySetupPageState extends State<CompanySetupPage> {
     return Scaffold(
       appBar: AppBar(
         title: Text(_editing ? 'Dados da empresa' : 'Configurar empresa'),
+        actions: _editing
+            ? [
+                TextButton(
+                  onPressed: _saving || _loading ? null : _save,
+                  child: _saving
+                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                      : const Text('Salvar'),
+                ),
+                const CompanyAppBarActions(),
+              ]
+            : null,
       ),
+      bottomNavigationBar: _editing ? const CompanyBottomNavigation(selectedIndex: 2) : null,
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _buildForm(),
@@ -429,6 +455,17 @@ class _CompanySetupPageState extends State<CompanySetupPage> {
                 const SizedBox(height: 24),
 
                 // ==================================================
+                // CATEGORIA
+                // ==================================================
+                DropdownButtonFormField<String>(
+                  initialValue: _businessCategory,
+                  decoration: const InputDecoration(labelText: 'Categoria da empresa *'),
+                  items: businessCategories.map((category) => DropdownMenuItem(value: category, child: Text(category))).toList(),
+                  onChanged: _saving ? null : (value) => setState(() => _businessCategory = value),
+                  validator: (value) => value == null ? 'Selecione uma categoria.' : null,
+                ),
+                const SizedBox(height: 16),
+
                 // NOME
                 // ==================================================
                 TextFormField(
@@ -591,9 +628,9 @@ class _CompanySetupPageState extends State<CompanySetupPage> {
                 const SizedBox(height: 20),
 
                 // ==================================================
-                // BOTÃO
+                // BOTÃO DE CRIAÇÃO (na edição, salvar fica no topo)
                 // ==================================================
-                SizedBox(
+                if (!_editing) SizedBox(
                   height: 52,
                   child: ElevatedButton(
                     onPressed: _saving ? null : _save,

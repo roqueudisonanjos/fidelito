@@ -19,16 +19,17 @@ class AllPromotionsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final visiblePromotions = promotions.where((promotion) => promotion.pointsRequired > 0).toList();
     return Scaffold(
       appBar: AppBar(title: const Text('Todas as recompensas')),
-      body: promotions.isEmpty
+      body: visiblePromotions.isEmpty
           ? const Center(child: Text('Nenhuma recompensa disponível.'))
           : ListView.separated(
               padding: const EdgeInsets.all(16),
-              itemCount: promotions.length,
+              itemCount: visiblePromotions.length,
               separatorBuilder: (_, _) => const SizedBox(height: 12),
               itemBuilder: (context, index) {
-                final promotion = promotions[index];
+                final promotion = visiblePromotions[index];
                 return Card(
                   clipBehavior: Clip.antiAlias,
                   child: InkWell(
@@ -109,9 +110,7 @@ class AllPromotionsPage extends StatelessWidget {
                                   color: Theme.of(context).colorScheme.primary),
                               const SizedBox(width: 5),
                               Text(
-                                promotion.pointsRequired == 0
-                                    ? 'Grátis'
-                                    : '${promotion.pointsRequired} pontos',
+                                '${promotion.pointsRequired} pontos',
                                 style: const TextStyle(
                                   fontWeight: FontWeight.w600,
                                 ),
