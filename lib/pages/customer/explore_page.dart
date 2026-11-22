@@ -265,6 +265,7 @@ class _ExplorePageState extends State<ExplorePage> {
     return DefaultTabController(
       length: 3,
       child: Scaffold(
+        appBar: AppBar(title: const Text('Descobrir')),
         body: Column(
           children: [
             Padding(
@@ -640,11 +641,6 @@ class _ExplorePageState extends State<ExplorePage> {
                     avatar: const Icon(Icons.category_outlined, size: 16),
                     label: Text(company['category'].toString()),
                   ),
-                ),
-              if ((company['description'] ?? '').toString().trim().isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(top: 8),
-                  child: Text(company['description'].toString()),
                 ),
               const SizedBox(height: 12),
               SizedBox(
