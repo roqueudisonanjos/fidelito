@@ -6,14 +6,14 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
 
-class FidelitoApp extends StatefulWidget {
-  const FidelitoApp({super.key});
+class VantyApp extends StatefulWidget {
+  const VantyApp({super.key});
 
   @override
-  State<FidelitoApp> createState() => _FidelitoAppState();
+  State<VantyApp> createState() => _VantyAppState();
 }
 
-class _FidelitoAppState extends State<FidelitoApp> {
+class _VantyAppState extends State<VantyApp> {
   final SupabaseClient _supabase = Supabase.instance.client;
   StreamSubscription<AuthState>? _authSubscription;
   Timer? _companyStatusTimer;
@@ -112,7 +112,7 @@ class _FidelitoAppState extends State<FidelitoApp> {
   Widget build(BuildContext context) {
     return MaterialApp.router(
       debugShowCheckedModeBanner: false,
-      title: 'Fidelito',
+      title: 'Vanty',
       theme: AppTheme.light,
       routerConfig: appRouter,
     );

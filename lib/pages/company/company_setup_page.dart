@@ -413,7 +413,7 @@ class _CompanySetupPageState extends State<CompanySetupPage> {
                 Text(
                   _editing
                       ? 'Atualize as informações da sua empresa.'
-                      : 'Essas informações serão utilizadas no seu perfil dentro do Fidelito.',
+                      : 'Essas informações serão utilizadas no seu perfil dentro do Vanty.',
                   textAlign: TextAlign.center,
                 ),
 

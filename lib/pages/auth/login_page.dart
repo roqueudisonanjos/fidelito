@@ -26,7 +26,7 @@ class _LoginPageState extends State<LoginPage> {
   String? error;
 
   Future<void> _forgotPassword() async {
-    const message = 'Esqueci a minha senha do fidelito. Poderia me ajudar?';
+    const message = 'Esqueci a minha senha do Vanty. Poderia me ajudar?';
     final number = AppConfig.supportWhatsappNumber.replaceAll(
       RegExp(r'\D'),
       '',
@@ -132,7 +132,7 @@ class _LoginPageState extends State<LoginPage> {
                         ),
                         const SizedBox(height: 16),
                         const Text(
-                          'Fidelito',
+                          'Vanty',
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 32,

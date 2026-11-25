@@ -1,4 +1,4 @@
-# Fidelito — alterações solicitadas em 15/11/2026
+# Vanty — alterações solicitadas em 15/11/2026
 
 ## O que foi alterado
 
@@ -29,8 +29,8 @@
 
 ### 5. Esqueci minha senha
 - A tela de login tem a opção **Esqueci minha senha**.
-- Ela abre o WhatsApp com a mensagem exata: `Esqueci a minha senha do fidelito. Poderia me ajudar?`
-- O número de suporte é configurado pela variável `SUPPORT_WHATSAPP` (DDI + DDD + número, somente dígitos). O número ainda precisa ser informado/configurado pelo responsável pelo Fidelito.
+- Ela abre o WhatsApp com a mensagem exata: `Esqueci a minha senha do Vanty. Poderia me ajudar?`
+- O número de suporte é configurado pela variável `SUPPORT_WHATSAPP` (DDI + DDD + número, somente dígitos). O número ainda precisa ser informado/configurado pelo responsável pelo Vanty.
 
 ## Configuração do WhatsApp profissional
 

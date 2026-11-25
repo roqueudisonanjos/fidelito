@@ -1,4 +1,4 @@
-# Fidelito — alterações de interface e fidelidade (14/11/2026)
+# Vanty — alterações de interface e fidelidade (14/11/2026)
 
 ## O que mudou
 

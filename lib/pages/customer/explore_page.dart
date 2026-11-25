@@ -7,6 +7,8 @@ import '../../services/profile_service.dart';
 import '../../services/share_service.dart';
 import '../../services/company_offer_service.dart';
 import '../../core/config/business_categories.dart';
+import '../../core/theme/app_colors.dart';
+import '../../widgets/floating_image_card.dart';
 
 class ExplorePage extends StatefulWidget {
   const ExplorePage({super.key});
@@ -94,11 +96,6 @@ class _ExplorePageState extends State<ExplorePage> {
     } finally {
       if (mounted) setState(() => _gettingLocation = false);
     }
-  }
-
-  Future<void> _openProfile() async {
-    final result = await context.push<bool>('/profile/edit');
-    if (result == true && mounted) await _initializeLocationAndLoad();
   }
 
   Future<void> _load() async {
@@ -223,7 +220,6 @@ class _ExplorePageState extends State<ExplorePage> {
     );
   }
 
-
   Future<void> _openLoyaltyProgram(Map<String, dynamic> company) async {
     final left = await context.push<bool>(
       '/customer/loyalty-program',
@@ -252,6 +248,141 @@ class _ExplorePageState extends State<ExplorePage> {
         SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
       );
     }
+  }
+
+  static const int _descriptionMaxChars = 80;
+  static const double _offerImageSize = 110;
+  static const EdgeInsets _offerPadding = EdgeInsets.fromLTRB(12, 12, 12, 8);
+
+  String _limitText(String text, [int max = _descriptionMaxChars]) {
+    final trimmed = text.trim();
+    if (trimmed.length <= max) return trimmed;
+    return '${trimmed.substring(0, max).trimRight()}…';
+  }
+
+  DateTime? _endDate(Map<String, dynamic> item) {
+    for (final key in ['ends_at', 'valid_until', 'expires_at']) {
+      final value = item[key]?.toString();
+      if (value == null || value.isEmpty) continue;
+      final date = DateTime.tryParse(value);
+      if (date != null) return date.toLocal();
+    }
+    return null;
+  }
+
+  String _formatDateOnly(DateTime date) {
+    final day = date.day.toString().padLeft(2, '0');
+    final month = date.month.toString().padLeft(2, '0');
+    return '$day/$month/${date.year}';
+  }
+
+  /// Cabeçalho do card de oferta: logo pequena, nome da empresa e compartilhar.
+  Widget _offerHeader(Map<String, dynamic> offer, Map<String, dynamic> company) {
+    final logo = company['logo_url']?.toString() ?? '';
+    final name = company['name']?.toString() ?? 'Empresa';
+    final bodyStyle = Theme.of(context).textTheme.bodyMedium!;
+    final primary = Theme.of(context).colorScheme.primary;
+
+    return Row(
+      children: [
+        CircleAvatar(
+          radius: 10,
+          backgroundImage: logo.isNotEmpty ? NetworkImage(logo) : null,
+          child: logo.isEmpty ? const Icon(Icons.storefront, size: 12) : null,
+        ),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            name,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: bodyStyle.copyWith(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: primary,
+            ),
+          ),
+        ),
+        IconButton(
+          tooltip: 'Compartilhar oferta',
+          visualDensity: VisualDensity.compact,
+          constraints: const BoxConstraints.tightFor(width: 36, height: 36),
+          padding: EdgeInsets.zero,
+          onPressed: () => ShareService.shareOffer(
+            companyName: name,
+            title: offer['title']?.toString() ?? 'Oferta',
+            description: offer['description']?.toString(),
+            companyLogoUrl: company['logo_url']?.toString(),
+            companyId: company['id']?.toString(),
+            offerId: offer['id']?.toString(),
+          ),
+          icon: const Icon(Icons.share_outlined),
+        ),
+      ],
+    );
+  }
+
+  List<FloatBlock> _offerBlocks(Map<String, dynamic> offer) {
+    final company = Map<String, dynamic>.from(offer['companies'] ?? {});
+    final description = _limitText(offer['description']?.toString() ?? '');
+    final endDate = _endDate(offer);
+    final validText = endDate == null
+        ? 'Validade não informada'
+        : 'Válida até ${_formatDateOnly(endDate)}';
+    final bodyStyle = Theme.of(context).textTheme.bodyMedium!;
+
+    return [
+      FloatBlock.widget(_offerHeader(offer, company), height: 36, spacing: 6),
+      FloatBlock.text(
+        offer['title']?.toString() ?? 'Oferta',
+        bodyStyle.copyWith(fontWeight: FontWeight.bold, fontSize: 16),
+        spacing: 6,
+        maxLines: 2,
+        fullWidth: true,
+      ),
+      if (description.isNotEmpty)
+        FloatBlock.text(
+          description,
+          bodyStyle.copyWith(fontSize: 13),
+          spacing: 6,
+          maxLines: 3,
+        ),
+      FloatBlock.text(
+        validText,
+        bodyStyle.copyWith(
+          fontSize: 13,
+          color: endDate == null ? Colors.grey : Colors.orange,
+          fontWeight: FontWeight.w500,
+        ),
+        maxLines: 1,
+      ),
+    ];
+  }
+
+  Widget _offerCard(Map<String, dynamic> offer) {
+    final company = Map<String, dynamic>.from(offer['companies'] ?? {});
+    final image = offer['image_url']?.toString() ?? '';
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide.none,
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: () => context.push(
+          '/empresa/${company['id']}?oferta=${offer['id']}',
+        ),
+        child: FloatingImageCard(
+          padding: _offerPadding,
+          imageUrl: image.isEmpty ? null : image,
+          imageSize: _offerImageSize,
+          blocks: _offerBlocks(offer),
+        ),
+      ),
+    );
   }
 
   @override
@@ -438,7 +569,6 @@ class _ExplorePageState extends State<ExplorePage> {
   Widget _buildOfferResults() {
     if (_loading) return const Center(child: CircularProgressIndicator());
     if (_error != null) return _buildRefreshableMessage(_error!);
-
     return RefreshIndicator(
       onRefresh: _load,
       child: ListView(
@@ -449,91 +579,7 @@ class _ExplorePageState extends State<ExplorePage> {
               padding: EdgeInsets.symmetric(vertical: 24),
               child: Center(child: Text('Nenhuma oferta disponível nesta categoria.')),
             ),
-          ..._filteredOffers.map((offer) {
-            final company = Map<String, dynamic>.from(offer['companies'] ?? {});
-            final image = offer['image_url']?.toString() ?? '';
-            final endDate = DateTime.tryParse(offer['ends_at']?.toString() ?? '')?.toLocal();
-            final validUntil = endDate == null
-                ? 'Validade não informada'
-                : 'Válida até ${endDate.day.toString().padLeft(2, '0')}/${endDate.month.toString().padLeft(2, '0')}/${endDate.year}';
-
-            return Card(
-              margin: const EdgeInsets.only(bottom: 12),
-              clipBehavior: Clip.antiAlias,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (image.isNotEmpty)
-                    Image.network(
-                      image,
-                      height: 170,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, _, _) => const SizedBox.shrink(),
-                    ),
-                  ListTile(
-                    leading: CircleAvatar(
-                      backgroundImage: (company['logo_url']?.toString() ?? '').isNotEmpty
-                          ? NetworkImage(company['logo_url'].toString())
-                          : null,
-                      child: (company['logo_url']?.toString() ?? '').isEmpty
-                          ? const Icon(Icons.storefront)
-                          : null,
-                    ),
-                    title: Text(company['name']?.toString() ?? 'Empresa'),
-                    subtitle: Text(
-                      [company['city'], company['state']]
-                          .where((value) => value != null && value.toString().isNotEmpty)
-                          .join(' - '),
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          offer['title']?.toString() ?? 'Oferta',
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-                        ),
-                        if ((offer['description']?.toString() ?? '').trim().isNotEmpty) ...[
-                          const SizedBox(height: 6),
-                          Text(offer['description'].toString()),
-                        ],
-                        const SizedBox(height: 6),
-                        Text(validUntil, style: const TextStyle(fontSize: 12, color: Colors.grey)),
-                        const SizedBox(height: 8),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: OutlinedButton.icon(
-                                onPressed: () => context.push('/empresa/${company['id']}?oferta=${offer['id']}'),
-                                icon: const Icon(Icons.store_outlined),
-                                label: const Text('Ver empresa'),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            IconButton(
-                              tooltip: 'Compartilhar oferta',
-                              onPressed: () => ShareService.shareOffer(
-                                companyName: company['name']?.toString() ?? 'Empresa',
-                                title: offer['title']?.toString() ?? 'Oferta',
-                                description: offer['description']?.toString(),
-                                companyLogoUrl: company['logo_url']?.toString(),
-                                companyId: company['id']?.toString(),
-                                offerId: offer['id']?.toString(),
-                              ),
-                              icon: const Icon(Icons.share_outlined),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }),
+          ..._filteredOffers.map(_offerCard),
         ],
       ),
     );
@@ -665,7 +711,46 @@ class _ExplorePageState extends State<ExplorePage> {
   }
 
   Widget _promotionCard(Map<String, dynamic> promotion) {
-    final company = Map<String, dynamic>.from(promotion['company'] ?? {});
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide.none,
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: () async {
+          final left = await context.push<bool>(
+            '/customer/company-details',
+            extra: _companyForAction(promotion),
+          );
+          if (left == true && mounted) await _load();
+        },
+        child: FloatingImageCard(
+          padding: _offerPadding,
+          blocks: _rewardBlocks(promotion),
+        ),
+      ),
+    );
+  }
+
+  Map<String, dynamic> _companyForAction(Map<String, dynamic> promotion) {
+    final company = Map<String, dynamic>.from(
+      promotion['company'] ?? promotion['companies'] ?? {},
+    );
+    final match = _companies
+        .where((c) => c['id'].toString() == company['id']?.toString())
+        .toList();
+    return match.isNotEmpty
+        ? match.first
+        : <String, dynamic>{...company, 'joined': false};
+  }
+
+  List<FloatBlock> _rewardBlocks(Map<String, dynamic> promotion) {
+    final company = Map<String, dynamic>.from(
+      promotion['company'] ?? promotion['companies'] ?? {},
+    );
     final type = promotion['type']?.toString();
     final discount = promotion['discount_percentage'];
     final reward = type == 'discount' && discount != null
@@ -673,119 +758,162 @@ class _ExplorePageState extends State<ExplorePage> {
         : (promotion['gift_description']?.toString().trim().isNotEmpty == true
               ? promotion['gift_description'].toString()
               : 'Recompensa especial');
-    final location = [
-      company['city'],
-      company['state'],
-    ].where((v) => v != null && v.toString().isNotEmpty).join(' - ');
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if ((promotion['image_url'] ?? '').toString().isNotEmpty) ...[
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Image.network(
-                  promotion['image_url'].toString(),
-                  height: 120,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, _, _) => const SizedBox.shrink(),
-                ),
-              ),
-              const SizedBox(height: 10),
-            ],
-            Row(
-              children: [
-                const Icon(Icons.local_offer_outlined),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    promotion['title']?.toString() ?? 'Promoção',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                IconButton(
-                  tooltip: 'Compartilhar recompensa',
-                  visualDensity: VisualDensity.compact,
-                  onPressed: () => ShareService.sharePromotion(
-                    companyName: company['name']?.toString() ?? 'Empresa',
-                    title: promotion['title']?.toString() ?? 'Recompensa',
-                    type: type ?? '',
-                    discountPercentage: discount?.toString(),
-                    giftDescription: promotion['gift_description']?.toString(),
-                    description: promotion['description']?.toString(),
-                    companyLogoUrl: company['logo_url']?.toString(),
-                    companyId: company['id']?.toString(),
-                  ),
-                  icon: const Icon(Icons.share_outlined),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              reward,
-              style: TextStyle(
-                fontSize: 19,
-                fontWeight: FontWeight.bold,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-            ),
-            if ((promotion['description'] ?? '').toString().trim().isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 6),
-                child: Text(promotion['description'].toString()),
-              ),
-            const SizedBox(height: 8),
-            Text(
-              'Disponível em ${company['name'] ?? 'Empresa'}${location.isEmpty ? '' : ' • $location'}',
-              style: const TextStyle(color: Colors.grey),
-            ),
-            Text(
-            'Resgate: ${promotion['points_required'] ?? 1} pontos',
-              style: const TextStyle(fontSize: 12, color: Colors.grey),
-            ),
-            const SizedBox(height: 10),
-            Align(
-              alignment: Alignment.centerRight,
-              child: Builder(
-                builder: (context) {
-                  final match = _companies
-                      .where(
-                        (c) => c['id'].toString() == company['id']?.toString(),
-                      )
-                      .toList();
-                  final joined =
-                      match.isNotEmpty && match.first['joined'] == true;
-                  final companyForAction = match.isNotEmpty
-                      ? match.first
-                      : <String, dynamic>{...company, 'joined': false};
-                  return TextButton.icon(
-                    onPressed: () {
-                      if (joined) {
-                        _openLoyaltyProgram(companyForAction);
-                      } else {
-                        _join(companyForAction);
-                      }
-                    },
-                    icon: Icon(joined ? Icons.check_circle_outline : Icons.add),
-                    label: Text(
-                      joined
-                          ? 'Ver minha fidelidade'
-                          : 'Participar da fidelidade',
-                    ),
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
+    final description = _limitText(promotion['description']?.toString() ?? '');
+    final endDate = _endDate(promotion);
+    final joined = _companyForAction(promotion)['joined'] == true;
+    final bodyStyle = Theme.of(context).textTheme.bodyMedium!;
+    final primary = Theme.of(context).colorScheme.primary;
+
+    return [
+      FloatBlock.widget(_rewardHeader(promotion, company), height: 36, spacing: 6),
+      FloatBlock.text(
+        promotion['title']?.toString() ?? 'Promoção',
+        bodyStyle.copyWith(fontWeight: FontWeight.bold, fontSize: 16),
+        spacing: 6,
+        maxLines: 2,
+        fullWidth: true,
       ),
+      FloatBlock.text(
+        reward,
+        bodyStyle.copyWith(
+          fontSize: 16,
+          fontWeight: FontWeight.w600,
+          color: primary,
+        ),
+        spacing: 6,
+        maxLines: 1,
+        fullWidth: true,
+      ),
+      if (description.isNotEmpty)
+        FloatBlock.text(
+          description,
+          bodyStyle.copyWith(fontSize: 13),
+          spacing: 6,
+          maxLines: 3,
+        ),
+      if (endDate != null)
+        FloatBlock.text(
+          'Válido até ${_formatDateOnly(endDate)}',
+          bodyStyle.copyWith(
+            fontSize: 13,
+            color: Colors.orange,
+            fontWeight: FontWeight.w500,
+          ),
+          spacing: 6,
+          maxLines: 1,
+        ),
+      FloatBlock.text(
+        joined
+            ? 'Você já participa deste programa.'
+            : 'Participe para acumular pontos nesta empresa.',
+        bodyStyle.copyWith(
+          fontSize: 13,
+          color: joined ? Colors.green : Colors.grey,
+        ),
+        spacing: 8,
+        maxLines: 2,
+      ),
+      FloatBlock.widget(_rewardActions(promotion, joined), height: 40),
+    ];
+  }
+
+  /// Cabeçalho da recompensa: logo, nome da empresa e compartilhar.
+  Widget _rewardHeader(Map<String, dynamic> promotion, Map<String, dynamic> company) {
+    final logo = company['logo_url']?.toString() ?? '';
+    final name = company['name']?.toString() ?? 'Empresa';
+    final bodyStyle = Theme.of(context).textTheme.bodyMedium!;
+    final primary = Theme.of(context).colorScheme.primary;
+
+    return Row(
+      children: [
+        CircleAvatar(
+          radius: 10,
+          backgroundImage: logo.isNotEmpty ? NetworkImage(logo) : null,
+          child: logo.isEmpty ? const Icon(Icons.storefront, size: 12) : null,
+        ),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            name,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: bodyStyle.copyWith(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: primary,
+            ),
+          ),
+        ),
+        IconButton(
+          tooltip: 'Compartilhar recompensa',
+          visualDensity: VisualDensity.compact,
+          constraints: const BoxConstraints.tightFor(width: 36, height: 36),
+          padding: EdgeInsets.zero,
+          onPressed: () => ShareService.sharePromotion(
+            companyName: name,
+            title: promotion['title']?.toString() ?? 'Recompensa',
+            type: promotion['type']?.toString() ?? '',
+            discountPercentage: promotion['discount_percentage']?.toString(),
+            giftDescription: promotion['gift_description']?.toString(),
+            description: promotion['description']?.toString(),
+            companyLogoUrl: company['logo_url']?.toString(),
+            companyId: company['id']?.toString(),
+          ),
+          icon: const Icon(Icons.share_outlined),
+        ),
+      ],
     );
   }
+
+  /// Linha de ações: pontos e botão de participar ou ver fidelidade.
+  Widget _rewardActions(Map<String, dynamic> promotion, bool joined) {
+    final companyForAction = _companyForAction(promotion);
+
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            color: joined
+                ? Colors.green.withValues(alpha: .12)
+                : Colors.grey.withValues(alpha: .12),
+          ),
+          child: Text(
+            '${promotion['points_required'] ?? 1} pts',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+              color: joined ? Colors.green : Colors.grey,
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: joined
+              ? OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                  ),
+                  onPressed: () => _openLoyaltyProgram(companyForAction),
+                  child: const FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text('Ver minha fidelidade'),
+                  ),
+                )
+              : FilledButton(
+                  style: FilledButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                  ),
+                  onPressed: () => _join(companyForAction),
+                  child: const FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text('Participar da fidelidade'),
+                  ),
+                ),
+        ),
+      ],
+    );
+  }
+
 }

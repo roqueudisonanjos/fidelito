@@ -67,7 +67,7 @@ class ImageUploadService {
             minContainerWidth: 240,
             minContainerHeight: 180,
             customDialogBuilder: (cropper, initCropper, crop, rotate, scale) {
-              return _FidelitoWebCropDialog(
+              return _VantyWebCropDialog(
                 cropper: cropper,
                 initCropper: initCropper,
                 crop: crop,
@@ -147,15 +147,15 @@ class ImageUploadService {
 }
 
 
-/// Dialog Web próprio do Fidelito. O Cropper fornece a área de edição,
+/// Dialog Web próprio do Vanty. O Cropper fornece a área de edição,
 /// enquanto os botões e a confirmação ficam sob controle da aplicação.
-class _FidelitoWebCropDialog extends StatefulWidget {
+class _VantyWebCropDialog extends StatefulWidget {
   final Widget cropper;
   final void Function() initCropper;
   final Future<String?> Function() crop;
   final void Function(RotationAngle) rotate;
 
-  const _FidelitoWebCropDialog({
+  const _VantyWebCropDialog({
     required this.cropper,
     required this.initCropper,
     required this.crop,
@@ -163,10 +163,10 @@ class _FidelitoWebCropDialog extends StatefulWidget {
   });
 
   @override
-  State<_FidelitoWebCropDialog> createState() => _FidelitoWebCropDialogState();
+  State<_VantyWebCropDialog> createState() => _VantyWebCropDialogState();
 }
 
-class _FidelitoWebCropDialogState extends State<_FidelitoWebCropDialog> {
+class _VantyWebCropDialogState extends State<_VantyWebCropDialog> {
   bool _isCropping = false;
 
   @override

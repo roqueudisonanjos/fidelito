@@ -918,7 +918,7 @@ class _CompanyHomePageState extends State<CompanyHomePage> {
 
         actions: [
           IconButton(
-            tooltip: 'Compartilhar Fidelito',
+            tooltip: 'Compartilhar Vanty',
             onPressed: () => ShareService.shareCompanyClub(
               companyName: _companyData?.companyName ?? 'nossa empresa',
               companyLogoUrl: _companyData?.companyLogoUrl,

@@ -10,7 +10,7 @@ Foi adicionada à aba **Empresas** a ação **Gerar link de recuperação de sen
 4. O painel chama a Edge Function `admin-console` enviando apenas o ID da empresa.
 5. A função consulta o `owner_id` diretamente na tabela `companies`, localiza o e-mail correspondente no Supabase Auth e gera um link oficial de recuperação.
 6. O painel exibe o link para copiar e enviar exclusivamente ao responsável verificado.
-7. O responsável abre o link e define a nova senha na tela `/reset-password` do Fidelito.
+7. O responsável abre o link e define a nova senha na tela `/reset-password` do Vanty.
 
 ## Segurança
 
@@ -32,5 +32,5 @@ supabase functions deploy admin-console
 Mantenha configurado no Supabase Auth o Redirect URL:
 
 ```text
-https://fidelito.web.app/reset-password
+https://vanty.web.app/reset-password
 ```

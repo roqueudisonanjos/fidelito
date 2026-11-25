@@ -1,4 +1,4 @@
-# Painel administrativo do Fidelito
+# Painel administrativo do Vanty
 
 Esta versão adiciona uma área exclusiva para a administração da plataforma, protegida no servidor. O painel permite:
 
@@ -12,7 +12,7 @@ Não há opção para apagar contas, empresas, pontos ou histórico. A desativa�
 
 ## 1. Criar a conta que será administradora
 
-1. Crie uma conta normal no Fidelito com o e-mail que será usado por você.
+1. Crie uma conta normal no Vanty com o e-mail que será usado por você.
 2. Confirme o e-mail e faça login pelo menos uma vez.
 3. No Supabase, abra **Authentication > Users** e copie o UUID dessa conta.
 4. Execute a migração `20261115000200_fidelito_admin_console.sql` no SQL Editor.
@@ -39,7 +39,7 @@ No terminal, dentro da pasta do projeto e com o Supabase CLI instalado e autenti
 ```bash
 supabase link --project-ref SEU_PROJECT_REF
 supabase functions deploy admin-console
-supabase secrets set FIDELITO_SITE_URL=https://fidelito.web.app
+supabase secrets set FIDELITO_SITE_URL=https://vanty.web.app
 ```
 
 A função usa as variáveis fornecidas pelo ambiente do Supabase (`SUPABASE_URL`, `SUPABASE_ANON_KEY` e `SUPABASE_SERVICE_ROLE_KEY`). A chave `service_role` permanece no servidor. A função valida o JWT do usuário e consulta `fidelito_admins` antes de executar qualquer ação administrativa.
@@ -50,20 +50,20 @@ O `verify_jwt = true` está configurado para a função `admin-console`.
 
 No Supabase, abra **Authentication > URL Configuration**:
 
-- Defina **Site URL** como `https://fidelito.web.app`.
-- Em **Redirect URLs**, adicione `https://fidelito.web.app/reset-password`.
+- Defina **Site URL** como `https://vanty.web.app`.
+- Em **Redirect URLs**, adicione `https://vanty.web.app/reset-password`.
 - Para desenvolvimento local, adicione também o endereço local que você realmente utiliza, por exemplo `http://localhost:PORT/reset-password`.
 
-O link é criado pelo Supabase Auth como um link de recuperação de uso único. Ele redireciona para a rota `/reset-password` do Fidelito, onde o próprio cliente escolhe a nova senha. A validade é controlada pelas configurações de Auth do projeto Supabase.
+O link é criado pelo Supabase Auth como um link de recuperação de uso único. Ele redireciona para a rota `/reset-password` do Vanty, onde o próprio cliente escolhe a nova senha. A validade é controlada pelas configurações de Auth do projeto Supabase.
 
 ## 4. Usar o painel
 
-1. Entre no Fidelito com a conta que foi cadastrada em `fidelito_admins`.
+1. Entre no Vanty com a conta que foi cadastrada em `fidelito_admins`.
 2. O sistema direcionará essa conta para **Painel administrativo**.
 3. Na aba **Clientes**, pesquise pelo nome, e-mail ou telefone.
 4. Antes de gerar o link, confirme a identidade da pessoa por um canal confiável.
 5. Clique em **Gerar link de recuperação de senha**, confirme a verificação e copie o link.
-6. Envie o link somente ao titular da conta, pelo atendimento de WhatsApp. O cliente abre o link, define uma nova senha e volta a acessar o Fidelito.
+6. Envie o link somente ao titular da conta, pelo atendimento de WhatsApp. O cliente abre o link, define uma nova senha e volta a acessar o Vanty.
 7. Na aba **Empresas**, pesquise e use os botões para ativar/desativar uma empresa.
 
 ## Segurança
@@ -96,7 +96,7 @@ Depois de atualizar o projeto, publique novamente a função:
 supabase functions deploy admin-console
 ```
 
-Não é necessária nova migração SQL. A recuperação utiliza a tabela `companies`, a conta Auth do responsável e a tabela de auditoria já existentes. A URL `https://fidelito.web.app/reset-password` deve continuar cadastrada nas Redirect URLs do Supabase Auth.
+Não é necessária nova migração SQL. A recuperação utiliza a tabela `companies`, a conta Auth do responsável e a tabela de auditoria já existentes. A URL `https://vanty.web.app/reset-password` deve continuar cadastrada nas Redirect URLs do Supabase Auth.
 
 
 ## Suspensão de empresas

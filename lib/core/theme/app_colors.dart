@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// Paleta oficial do Fidelito: verde-petróleo para confiança,
+/// Paleta oficial do Vanty: verde-petróleo para confiança,
 /// verde-esmeralda para fidelidade e dourado para destacar recompensas.
 class AppColors {
   AppColors._();

@@ -1,4 +1,4 @@
-# Atualizações do Fidelito — 17/11/2026
+# Atualizações do Vanty — 17/11/2026
 
 ## Alterações
 

@@ -272,7 +272,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
       builder: (dialogContext) => AlertDialog(
         title: const Text('Excluir conta do cliente?'),
         content: Text(
-          'Esta ação é permanente e excluirá a conta Fidelito de "$customerName" ($customerEmail), '
+          'Esta ação é permanente e excluirá a conta Vanty de "$customerName" ($customerEmail), '
           'incluindo dados de fidelidade e acesso. Não será possível desfazer. Deseja continuar?',
         ),
         actions: [
@@ -373,7 +373,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
         title: Text(nextActive ? 'Ativar empresa?' : 'Desativar empresa?'),
         content: Text(
           nextActive
-              ? 'A empresa ${company['name']} voltará a aparecer e poderá utilizar os recursos do Fidelito.'
+              ? 'A empresa ${company['name']} voltará a aparecer e poderá utilizar os recursos do Vanty.'
               : 'A empresa ${company['name']} será suspensa. O responsável perderá o acesso ao aplicativo, e todos os clientes ativos receberão uma notificação informando que não poderão utilizar os pontos enquanto o programa estiver suspenso. Os saldos serão preservados.',
         ),
         actions: [
@@ -867,7 +867,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
                               ),
                               SizedBox(height: 3),
                               Text(
-                                'Gerencie contas e empresas do Fidelito.',
+                                'Gerencie contas e empresas do Vanty.',
                                 style: TextStyle(
                                   color: Colors.white70,
                                   fontSize: 12,

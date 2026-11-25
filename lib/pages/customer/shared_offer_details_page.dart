@@ -64,7 +64,7 @@ class _SharedOfferDetailsPageState extends State<SharedOfferDetailsPage> {
         title: const Text('Detalhes da oferta'),
         actions: [
           IconButton(
-            tooltip: 'Ir para Home do Fidelito',
+            tooltip: 'Ir para Home do Vanty',
             icon: const Icon(Icons.home_outlined),
             onPressed: () => context.go('/home'),
           ),

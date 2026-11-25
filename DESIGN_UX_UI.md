@@ -1,4 +1,4 @@
-# Atualização visual do Fidelito
+# Atualização visual do Vanty
 
 Esta atualização altera somente apresentação e estilos. Fluxos, rotas, integrações, regras de pontos, autenticação e consultas foram preservados.
 

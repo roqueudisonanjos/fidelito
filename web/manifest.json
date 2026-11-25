@@ -1,11 +1,11 @@
 {
-    "name": "Fidelito",
-    "short_name": "Fidelito",
+    "name": "Vanty",
+    "short_name": "Vanty",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#087968",
     "theme_color": "#087968",
-    "description": "Fidelito - fidelidade que gera benefícios.",
+    "description": "Vanty - descubra, aproveite e ganhe.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

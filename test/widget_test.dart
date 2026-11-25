@@ -13,11 +13,11 @@ void main() {
     );
   });
 
-  testWidgets('Fidelito abre a tela de login', (WidgetTester tester) async {
-    await tester.pumpWidget(const FidelitoApp());
+  testWidgets('Vanty abre a tela de login', (WidgetTester tester) async {
+    await tester.pumpWidget(const VantyApp());
     await tester.pumpAndSettle();
 
-    expect(find.text('Fidelito'), findsOneWidget);
+    expect(find.text('Vanty'), findsOneWidget);
     expect(find.text('Fidelidade que gera benefícios'), findsOneWidget);
     expect(find.text('E-mail'), findsOneWidget);
   });

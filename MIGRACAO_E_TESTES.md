@@ -1,4 +1,4 @@
-# Fidelito — atualização multiempresa
+# Vanty — atualização multiempresa
 
 ## O que foi alterado no aplicativo
 

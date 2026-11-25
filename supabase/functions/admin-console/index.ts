@@ -63,7 +63,7 @@ Deno.serve(async (req: Request) => {
       return json({ is_admin: !!adminRecord });
     }
 
-    if (!adminRecord) return json({ error: 'Acesso restrito à administração do Fidelito.' }, 403);
+    if (!adminRecord) return json({ error: 'Acesso restrito à administração do Vanty.' }, 403);
 
     const audit = async (
       actionName: string,

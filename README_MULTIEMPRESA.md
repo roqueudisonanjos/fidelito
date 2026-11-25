@@ -1,4 +1,4 @@
-# Atualização multiempresa do Fidelito
+# Atualização multiempresa do Vanty
 
 Esta entrega adiciona a descoberta de empresas por cidade, adesão a programas de fidelidade e consulta individual de saldo, benefícios e histórico por empresa.
 

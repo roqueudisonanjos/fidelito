@@ -77,7 +77,7 @@ Deno.serve(async (req) => {
     }
 
     const emailText = [
-      "Nova solicitação de cadastro no Fidelito",
+      "Nova solicitação de cadastro no Vanty",
       "",
       `Nome da empresa: ${company.name}`,
       `Descrição: ${company.description || "Não informada"}`,
@@ -99,7 +99,7 @@ Deno.serve(async (req) => {
       body: JSON.stringify({
         from: "onboarding@resend.dev",
         to: ["roquejr.anjos15@gmail.com"],
-        subject: `Fidelito — novo cadastro: ${company.name}`,
+        subject: `Vanty — novo cadastro: ${company.name}`,
         text: emailText,
       }),
     });

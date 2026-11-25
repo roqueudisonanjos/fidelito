@@ -1,4 +1,4 @@
-# Fidelito
+# Vanty
 
 Projeto Flutter com Supabase.
 
@@ -28,3 +28,11 @@ A versão inclui o painel administrativo e a Edge Function `admin-console`. Cons
 ## Atualização 16/11/2026 — contas e imagens
 
 Execute no SQL Editor do Supabase a migração `supabase/migrations/20261116000200_profiles_and_reward_images_account_rules.sql`. Em seguida, na pasta do Flutter, execute `flutter pub get` (nova dependência `image_picker`), `flutter analyze` e `flutter test`. A migração adiciona `profiles.avatar_url`, `promotions.image_url`, configura o bucket `fidelito-images` e exige que a empresa esteja desativada antes da exclusão definitiva.
+
+
+## Hospedagem Web Vanty
+
+O site Firebase Hosting está configurado para o ID `vanty` (`https://vanty.web.app`). Consulte `CONFIGURAR_DOMINIO_VANTY.md` para criar o site de Hosting, atualizar URLs de retorno do Supabase e publicar.
+
+Para gerar uma versão release:
+flutter build web --release --dart-define=SUPPORT_WHATSAPP=55DDDNÚMERO --dart-define=SUPABASE_PUBLISHABLE_KEY=KEY_SUPABASE --dart-define=SUPABASE_URL=URLSUPABASE

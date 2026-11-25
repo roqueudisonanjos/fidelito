@@ -53,7 +53,7 @@ class CompanySuspendedPage extends StatelessWidget {
                 const Text(
                   'O programa de fidelidade da sua empresa está suspenso. '
                   'Enquanto a suspensão estiver ativa, sua empresa não poderá '
-                  'utilizar os recursos do Fidelito, acessar o painel ou realizar '
+                  'utilizar os recursos do Vanty, acessar o painel ou realizar '
                   'operações. Entre em contato com o suporte ApoloApps para obter ajuda.',
                   textAlign: TextAlign.center,
                 ),

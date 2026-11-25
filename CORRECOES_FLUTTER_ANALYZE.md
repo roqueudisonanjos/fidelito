@@ -2,7 +2,7 @@
 
 Nesta versão foram tratados os apontamentos que constavam no relatório enviado:
 
-- O teste de widget foi atualizado para iniciar o `FidelitoApp` real e verificar a tela de login, em vez de testar o contador padrão do template Flutter (`MyApp`).
+- O teste de widget foi atualizado para iniciar o `VantyApp` real e verificar a tela de login, em vez de testar o contador padrão do template Flutter (`MyApp`).
 - Os `RadioListTile` passaram a usar `RadioGroup`, removendo os parâmetros obsoletos `groupValue` e `onChanged` dos tiles.
 - O campo de seleção de relatórios passou de `value` para `initialValue`.
 - Foram removidos casts e operadores `!` desnecessários.
