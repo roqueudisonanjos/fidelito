@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../services/benefit_service.dart';
+import '../../widgets/company_rating_display.dart';
 import 'package:go_router/go_router.dart';
 
 class MyBenefitsPage extends StatefulWidget {
@@ -218,26 +219,17 @@ class _MyBenefitsPageState extends State<MyBenefitsPage> {
                         const SizedBox(height: 4),
                         Row(
                           children: [
-                            CircleAvatar(
-                              radius: 12,
-                              backgroundImage:
-                                  (company?['logo_url'] ?? '')
-                                      .toString()
-                                      .isNotEmpty
-                                  ? NetworkImage(
-                                      company!['logo_url'].toString(),
-                                    )
-                                  : null,
-                              child:
-                                  (company?['logo_url'] ?? '')
-                                      .toString()
-                                      .isNotEmpty
-                                  ? null
-                                  : const Icon(
-                                      Icons.storefront_outlined,
-                                      size: 14,
-                                    ),
-                            ),
+                            Column(mainAxisSize: MainAxisSize.min, children: [
+                              CircleAvatar(
+                                radius: 12,
+                                backgroundImage: (company?['logo_url'] ?? '').toString().isNotEmpty
+                                    ? NetworkImage(company!['logo_url'].toString()) : null,
+                                child: (company?['logo_url'] ?? '').toString().isNotEmpty
+                                    ? null : const Icon(Icons.storefront_outlined, size: 14),
+                              ),
+                              if (company?['id'] != null)
+                                CompanyRatingLookup(companyId: company!['id'].toString(), compact: true),
+                            ]),
                             const SizedBox(width: 6),
                             Flexible(
                               child: Text(

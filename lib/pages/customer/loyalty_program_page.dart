@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../widgets/company_rating_display.dart';
 import 'package:go_router/go_router.dart';
 import '../../services/loyalty_program_service.dart';
 import '../../services/promotion_service.dart';
@@ -445,6 +446,8 @@ class _LoyaltyProgramPageState extends State<LoyaltyProgramPage> {
                       ),
                     ),
                   ),
+                  const SizedBox(height: 5),
+                  CompanyRatingLookup(companyId: company['id'].toString()),
                   const SizedBox(height: 12),
                   if ((company['description'] ?? '').toString().trim().isNotEmpty)
                     Text(company['description'].toString()),

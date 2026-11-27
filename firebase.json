@@ -1,6 +1,6 @@
 {
   "hosting": {
-    "site": "vanty",
+    "site": "plim",
     "public": "build/web",
     "ignore": [
       "firebase.json",

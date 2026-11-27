@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../../widgets/company/company_bottom_navigation.dart';
-import '../../widgets/company/company_app_bar_actions.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../services/company_service.dart';
@@ -364,7 +363,6 @@ class _CompanySetupPageState extends State<CompanySetupPage> {
                       ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
                       : const Text('Salvar'),
                 ),
-                const CompanyAppBarActions(),
               ]
             : null,
       ),
@@ -413,7 +411,7 @@ class _CompanySetupPageState extends State<CompanySetupPage> {
                 Text(
                   _editing
                       ? 'Atualize as informações da sua empresa.'
-                      : 'Essas informações serão utilizadas no seu perfil dentro do Vanty.',
+                      : 'Essas informações serão utilizadas no seu perfil dentro do Plim.',
                   textAlign: TextAlign.center,
                 ),
 

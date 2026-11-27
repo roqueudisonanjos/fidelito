@@ -1,5 +1,15 @@
 {
   "projects": {
     "default": "susu-35238"
-  }
+  },
+  "targets": {
+    "susu-35238": {
+      "hosting": {
+        "plim": [
+          "plim"
+        ]
+      }
+    }
+  },
+  "etags": {}
 }

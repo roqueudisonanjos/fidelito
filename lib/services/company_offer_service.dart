@@ -36,13 +36,14 @@ class CompanyOfferService {
 
 
   Future<void> saveOffer({String? id, required String companyId, required String title,
-      String? description, String? imageUrl, required DateTime start, required DateTime end,
+      String? description, String? imageUrl, List<String>? mediaUrls, required DateTime start, required DateTime end,
       required bool active}) async {
     if (title.trim().isEmpty) throw Exception('Informe o título da oferta.');
     if (!end.isAfter(start)) throw Exception('A data final deve ser posterior à inicial.');
     final payload = {
       'title': title.trim(), 'description': (description?.trim().isEmpty ?? true) ? null : description?.trim(),
-      'image_url': (imageUrl?.trim().isEmpty ?? true) ? null : imageUrl?.trim(),
+      'image_url': (mediaUrls != null && mediaUrls.isNotEmpty) ? mediaUrls.first : ((imageUrl?.trim().isEmpty ?? true) ? null : imageUrl?.trim()),
+      'media_urls': mediaUrls ?? ((imageUrl?.trim().isNotEmpty ?? false) ? [imageUrl!.trim()] : []),
       'starts_at': start.toUtc().toIso8601String(), 'ends_at': end.toUtc().toIso8601String(),
       'active': active, 'updated_at': DateTime.now().toUtc().toIso8601String(),
     };

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../models/promotion.dart';
+import '../../widgets/company_rating_display.dart';
 
 class AllPromotionsPage extends StatelessWidget {
   const AllPromotionsPage({super.key, required this.promotions});
@@ -62,16 +63,14 @@ class AllPromotionsPage extends StatelessWidget {
                             const SizedBox(height: 12),
                           Row(
                             children: [
-                              CircleAvatar(
-                                radius: 17,
-                                backgroundImage:
-                                    (promotion.companyLogoUrl ?? '').isNotEmpty
-                                        ? NetworkImage(promotion.companyLogoUrl!)
-                                        : null,
-                                child: (promotion.companyLogoUrl ?? '').isNotEmpty
-                                    ? null
-                                    : const Icon(Icons.storefront, size: 18),
-                              ),
+                              Column(mainAxisSize: MainAxisSize.min, children: [
+                                CircleAvatar(
+                                  radius: 17,
+                                  backgroundImage: (promotion.companyLogoUrl ?? '').isNotEmpty ? NetworkImage(promotion.companyLogoUrl!) : null,
+                                  child: (promotion.companyLogoUrl ?? '').isNotEmpty ? null : const Icon(Icons.storefront, size: 18),
+                                ),
+                                CompanyRatingLookup(companyId: promotion.companyId, compact: true),
+                              ]),
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(

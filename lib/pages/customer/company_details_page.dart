@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../../core/theme/app_colors.dart';
 import '../../services/customer_service.dart';
 import '../../services/loyalty_program_service.dart';
 import '../../services/company_offer_service.dart';
+import '../../services/company_story_service.dart';
 import '../../services/promotion_service.dart';
 import '../../services/share_service.dart';
+import '../../services/publication_view_service.dart';
+import '../../services/company_rating_service.dart';
+import '../../widgets/company_rating_display.dart';
 import '../../widgets/floating_image_card.dart';
-import '../../widgets/fullscreen_image_view.dart';
+import '../../widgets/media_gallery_viewer.dart';
 
 class CompanyDetailsPage extends StatefulWidget {
   const CompanyDetailsPage({super.key, this.company = const {}, this.companyId, this.offerId});
@@ -26,13 +29,21 @@ class _CompanyDetailsPageState extends State<CompanyDetailsPage> {
   final _offerService = CompanyOfferService();
   final _customerService = CustomerService();
   final _promotionService = PromotionService();
+  final _publicationViewService = PublicationViewService();
+  final _ratingService = CompanyRatingService();
+  final _storyService = CompanyStoryService();
 
+  List<Map<String, dynamic>> _stories = [];
+  Set<String> _viewedStoryIds = <String>{};
   List<Map<String, dynamic>> _offers = [];
   List<Map<String, dynamic>> _rewards = [];
   Map<String, int> _pointsByCompany = {};
   bool _loading = true;
   String? _error;
   Map<String, dynamic> _company = {};
+  double? _ratingAverage;
+  int _ratingCount = 0;
+  int? _myRating;
 
   static const double _cardWidth = 270;
   static const double _imageSize = 110;
@@ -59,9 +70,9 @@ class _CompanyDetailsPageState extends State<CompanyDetailsPage> {
       final details = await _service.getCompanyDetails(_companyId);
       List<Map<String, dynamic>> offers = [];
       List<Map<String, dynamic>> rewards = [];
+      List<Map<String, dynamic>> stories = [];
       Map<String, int> points = {};
       bool joined = widget.company['joined'] == true;
-
       try {
         offers = await _offerService.getPublicOffers(companyId: _companyId);
         if (widget.offerId != null) {
@@ -72,18 +83,22 @@ class _CompanyDetailsPageState extends State<CompanyDetailsPage> {
           });
         }
       } catch (_) {}
-
       try {
         rewards = await _service.getCompanyPromotions(_companyId);
         rewards = rewards
             .where((reward) => ((reward['points_required'] as num?)?.toInt() ?? 0) > 0)
             .toList();
       } catch (_) {}
-
+      try {
+        stories = await _storyService.getPublicStories(companyId: _companyId);
+      } catch (_) {}
+      Set<String> viewed = <String>{};
+      try {
+        viewed = await _publicationViewService.getViewedStoryIds();
+      } catch (_) {}
       try {
         points = await _customerService.getPointsByCompany();
       } catch (_) {}
-
       // Links compartilhados não trazem extras de navegação, então resolvemos a participação.
       if (!joined) {
         try {
@@ -91,10 +106,23 @@ class _CompanyDetailsPageState extends State<CompanyDetailsPage> {
           joined = myPrograms.any((program) => program['company_id']?.toString() == _companyId);
         } catch (_) {}
       }
-
+      double? ratingAverage;
+      int ratingCount = 0;
+      int? myRating;
+      try {
+        final rating = (await _ratingService.getStats([_companyId]))[_companyId];
+        ratingAverage = (rating?['average_rating'] as num?)?.toDouble();
+        ratingCount = (rating?['rating_count'] as num?)?.toInt() ?? 0;
+        myRating = (rating?['my_rating'] as num?)?.toInt();
+      } catch (_) {}
       if (!mounted) return;
       setState(() {
+        _ratingAverage = ratingAverage;
+        _ratingCount = ratingCount;
+        _myRating = myRating;
         _company = {...widget.company, ...details, 'joined': joined};
+        _stories = stories;
+        _viewedStoryIds = viewed;
         _offers = offers;
         _rewards = rewards;
         _pointsByCompany = points;
@@ -106,6 +134,81 @@ class _CompanyDetailsPageState extends State<CompanyDetailsPage> {
         _error = e.toString().replaceFirst('Exception: ', '');
         _loading = false;
       });
+    }
+  }
+
+  /// Abre o diálogo para avaliar ou, quando [editing] for true, alterar a avaliação já feita.
+  Future<void> _rateCompany({bool editing = false}) async {
+    if (!editing && (_myRating != null || _company['joined'] != true)) return;
+    if (editing && _myRating == null) return;
+
+    int selected = editing ? (_myRating ?? 5) : 5;
+    final stars = await showDialog<int>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text(editing ? 'Editar avaliação' : 'Avaliar empresa'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Como foi sua experiência com esta empresa?'),
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(
+                  5,
+                  (index) => IconButton(
+                    onPressed: () => setDialogState(() => selected = index + 1),
+                    icon: Icon(
+                      index < selected ? Icons.star_rounded : Icons.star_outline_rounded,
+                      color: Colors.amber,
+                      size: 32,
+                    ),
+                  ),
+                ),
+              ),
+              Text('$selected de 5 estrelas'),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, selected),
+              child: Text(editing ? 'Salvar alteração' : 'Enviar avaliação'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (stars == null) return;
+    if (editing && stars == _myRating) return;
+
+    try {
+      await _ratingService.submit(_companyId, stars);
+      final rating = (await _ratingService.getStats([_companyId]))[_companyId];
+      if (!mounted) return;
+      setState(() {
+        _myRating = stars;
+        _ratingAverage = (rating?['average_rating'] as num?)?.toDouble();
+        _ratingCount = (rating?['rating_count'] as num?)?.toInt() ?? 0;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            editing
+                ? 'Sua avaliação foi atualizada. Obrigado!'
+                : 'Sua avaliação foi registrada. Obrigado!',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+      );
     }
   }
 
@@ -135,9 +238,126 @@ class _CompanyDetailsPageState extends State<CompanyDetailsPage> {
 
   String _imageOf(Map<String, dynamic> item) => item['image_url']?.toString() ?? '';
 
-    void _openFullscreen(String url) => showFullscreenImage(context, url);
+  void _openFullscreen(String url, [List<String>? urls, String? description]) =>
+      showFullscreenMediaGallery(context, urls: urls ?? [url], description: description);
 
-    // ---------- Modal de detalhes ----------
+  // ---------- Destaques ----------
+
+  List<String> _storyMedia(Map<String, dynamic> story) {
+    final raw = story['media_urls'];
+    final list = raw is List
+        ? raw.map((e) => e?.toString() ?? '').where((e) => e.isNotEmpty).toList()
+        : <String>[];
+    if (list.isEmpty) {
+      final single = story['media_url']?.toString() ?? '';
+      if (single.isNotEmpty) list.add(single);
+    }
+    return list;
+  }
+
+  Future<void> _openStory(int index) async {
+    final story = _stories[index];
+    final media = _storyMedia(story);
+    if (media.isEmpty) return;
+    await _publicationViewService.recordView(type: 'story', id: story['id'].toString());
+    if (mounted) {
+      setState(() => _viewedStoryIds.add(story['id'].toString()));
+    }
+    if (!mounted) return;
+    await showFullscreenMediaGallery(
+      context,
+      urls: media,
+      description: story['description']?.toString(),
+      title: _company['name']?.toString(),
+    );
+  }
+
+  Widget _buildStories() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 18),
+        Text('Destaques', style: Theme.of(context).textTheme.titleLarge),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 112,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: _stories.length,
+            separatorBuilder: (_, _) => const SizedBox(width: 12),
+            itemBuilder: (context, index) {
+              final story = _stories[index];
+              final media = _storyMedia(story);
+              final seen = _viewedStoryIds.contains(story['id']?.toString());
+              final avatarUrl = media.isNotEmpty ? media.first : '';
+              return InkWell(
+                onTap: () => _openStory(index),
+                child: SizedBox(
+                  width: 78,
+                  child: Column(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(3),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: seen ? Colors.grey : Theme.of(context).colorScheme.primary,
+                            width: 2,
+                          ),
+                        ),
+                        child: Stack(
+                          children: [
+                            CircleAvatar(
+                              radius: 32,
+                              backgroundColor: Colors.grey.shade200,
+                              backgroundImage:
+                                  avatarUrl.isNotEmpty ? NetworkImage(avatarUrl) : null,
+                              child: avatarUrl.isEmpty
+                                  ? const Icon(Icons.image_outlined)
+                                  : null,
+                            ),
+                            if (media.length > 1)
+                              Positioned(
+                                right: 0,
+                                bottom: 0,
+                                child: Container(
+                                  padding: const EdgeInsets.all(3),
+                                  decoration: const BoxDecoration(
+                                    color: Colors.black87,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Text(
+                                    '${media.length}',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        _company['name']?.toString() ?? 'Empresa',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 11),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ---------- Modal de detalhes ----------
 
   void _showDetailSheet({
     required String image,
@@ -266,11 +486,11 @@ class _CompanyDetailsPageState extends State<CompanyDetailsPage> {
   }
 
   void _showOfferDetails(Map<String, dynamic> offer) {
+    _publicationViewService.recordView(type: 'offer', id: offer['id'].toString());
     final image = _imageOf(offer);
     final title = offer['title']?.toString() ?? 'Oferta';
     final description = offer['description']?.toString().trim() ?? '';
     final endDate = _endDate(offer);
-
     _showDetailSheet(
       image: image,
       title: title,
@@ -317,7 +537,6 @@ class _CompanyDetailsPageState extends State<CompanyDetailsPage> {
     final title = reward['title']?.toString() ?? 'Recompensa';
     final primary = Theme.of(context).colorScheme.primary;
     final bodyStyle = Theme.of(context).textTheme.bodyMedium;
-
     _showDetailSheet(
       image: _imageOf(reward),
       title: title,
@@ -381,7 +600,6 @@ class _CompanyDetailsPageState extends State<CompanyDetailsPage> {
     final name = _company['name']?.toString() ?? 'Empresa';
     final bodyStyle = Theme.of(context).textTheme.bodyMedium!;
     final primary = Theme.of(context).colorScheme.primary;
-
     return Row(
       children: [
         CircleAvatar(
@@ -420,7 +638,6 @@ class _CompanyDetailsPageState extends State<CompanyDetailsPage> {
     final description = _limitText(offer['description']?.toString() ?? '');
     final endDate = _endDate(offer);
     final bodyStyle = Theme.of(context).textTheme.bodyMedium!;
-
     return [
       FloatBlock.widget(
         _cardHeader(
@@ -467,7 +684,6 @@ class _CompanyDetailsPageState extends State<CompanyDetailsPage> {
     final isHighlighted = offer['id']?.toString() == widget.offerId;
     final primary = Theme.of(context).colorScheme.primary;
     final image = _imageOf(offer);
-
     return Card(
       margin: EdgeInsets.zero,
       clipBehavior: Clip.antiAlias,
@@ -483,12 +699,30 @@ class _CompanyDetailsPageState extends State<CompanyDetailsPage> {
           imageUrl: image.isEmpty ? null : image,
           imageSize: _imageSize,
           blocks: _offerBlocks(offer),
-          onImageTap: image.isEmpty ? null : () => _openFullscreen(image),
+          mediaCount: offer['media_urls'] is List && (offer['media_urls'] as List).length > 1
+              ? (offer['media_urls'] as List).length
+              : 1,
+          onImageTap: image.isEmpty
+              ? null
+              : () async {
+                  await _publicationViewService.recordView(
+                    type: 'offer',
+                    id: offer['id'].toString(),
+                  );
+                  if (!mounted) return;
+                  _openFullscreen(
+                    image,
+                    List<String>.from(
+                      offer['media_urls'] is List ? offer['media_urls'] as List : [image],
+                    ),
+                    offer['description']?.toString(),
+                  );
+                },
         ),
       ),
     );
   }
-  
+
   Widget _buildOffersSection() {
     final visible = _offers.take(10).toList();
     final heights = visible
@@ -505,7 +739,6 @@ class _CompanyDetailsPageState extends State<CompanyDetailsPage> {
         )
         .toList();
     final listHeight = heights.fold<double>(0, (acc, h) => h > acc ? h : acc);
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -564,7 +797,6 @@ class _CompanyDetailsPageState extends State<CompanyDetailsPage> {
       ),
     );
     if (confirmed != true) return;
-
     try {
       final result = await _promotionService.redeemPromotion(reward['id'].toString());
       if (!mounted) return;
@@ -596,7 +828,6 @@ class _CompanyDetailsPageState extends State<CompanyDetailsPage> {
     final endDate = _endDate(reward);
     final bodyStyle = Theme.of(context).textTheme.bodyMedium!;
     final primary = Theme.of(context).colorScheme.primary;
-
     return [
       FloatBlock.widget(
         _cardHeader(
@@ -698,7 +929,6 @@ class _CompanyDetailsPageState extends State<CompanyDetailsPage> {
 
   Widget _rewardCard(Map<String, dynamic> reward) {
     final image = _imageOf(reward);
-
     return Card(
       margin: EdgeInsets.zero,
       clipBehavior: Clip.antiAlias,
@@ -711,7 +941,18 @@ class _CompanyDetailsPageState extends State<CompanyDetailsPage> {
           imageUrl: image.isEmpty ? null : image,
           imageSize: _imageSize,
           blocks: _rewardBlocks(reward),
-          onImageTap: image.isEmpty ? null : () => _openFullscreen(image),
+          mediaCount: reward['media_urls'] is List && (reward['media_urls'] as List).length > 1
+              ? (reward['media_urls'] as List).length
+              : 1,
+          onImageTap: image.isEmpty
+              ? null
+              : () => _openFullscreen(
+                    image,
+                    List<String>.from(
+                      reward['media_urls'] is List ? reward['media_urls'] as List : [image],
+                    ),
+                    reward['description']?.toString(),
+                  ),
         ),
       ),
     );
@@ -733,7 +974,6 @@ class _CompanyDetailsPageState extends State<CompanyDetailsPage> {
         )
         .toList();
     final listHeight = heights.fold<double>(0, (acc, h) => h > acc ? h : acc);
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -796,6 +1036,33 @@ class _CompanyDetailsPageState extends State<CompanyDetailsPage> {
     return [city, state].where((part) => part.isNotEmpty).join(' - ');
   }
 
+  /// Linha de avaliação do cliente: nota atual e botão para avaliar ou editar.
+  Widget _myRatingRow() {
+    if (_myRating == null) {
+      return TextButton.icon(
+        onPressed: () => _rateCompany(),
+        icon: const Icon(Icons.star_outline_rounded),
+        label: const Text('Avaliar empresa'),
+      );
+    }
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          'Sua avaliação: $_myRating/5 estrelas',
+          style: Theme.of(context).textTheme.labelMedium,
+        ),
+        const SizedBox(width: 4),
+        TextButton.icon(
+          onPressed: () => _rateCompany(editing: true),
+          icon: const Icon(Icons.edit_outlined, size: 18),
+          label: const Text('Editar avaliação'),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final name = (_company['name'] ?? 'Empresa').toString();
@@ -810,13 +1077,12 @@ class _CompanyDetailsPageState extends State<CompanyDetailsPage> {
       if (address.isNotEmpty) address,
       if (_location.isNotEmpty) _location,
     ].join('\n');
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('Sobre a empresa'),
         actions: [
           IconButton(
-            tooltip: 'Ir para Home do Vanty',
+            tooltip: 'Ir para Home do Plim',
             icon: const Icon(Icons.home_outlined),
             onPressed: () => context.go('/home'),
           ),
@@ -863,6 +1129,12 @@ class _CompanyDetailsPageState extends State<CompanyDetailsPage> {
                                 : null,
                           ),
                         ),
+                        const SizedBox(height: 6),
+                        CompanyRatingDisplay(average: _ratingAverage, count: _ratingCount),
+                        if (joined || _myRating != null) ...[
+                          const SizedBox(height: 6),
+                          _myRatingRow(),
+                        ],
                         const SizedBox(height: 14),
                         Text(
                           name,
@@ -907,6 +1179,7 @@ class _CompanyDetailsPageState extends State<CompanyDetailsPage> {
                     ),
                   ),
                 ],
+                if (_stories.isNotEmpty) _buildStories(),
                 if (_offers.isNotEmpty) _buildOffersSection(),
                 if (_offers.isEmpty && widget.offerId != null) ...[
                   const SizedBox(height: 12),

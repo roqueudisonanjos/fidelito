@@ -101,6 +101,7 @@ class PromotionService {
     required DateTime startsAt,
     required DateTime endsAt,
     String? imageUrl,
+    List<String>? mediaUrls,
   }) async {
     // ----------------------------------------------------------
     // Validações
@@ -157,7 +158,8 @@ class PromotionService {
       'active': true,
       'starts_at': startsAt.toUtc().toIso8601String(),
       'ends_at': endsAt.toUtc().toIso8601String(),
-      'image_url': imageUrl,
+      'image_url': mediaUrls != null && mediaUrls.isNotEmpty ? mediaUrls.first : imageUrl,
+      'media_urls': mediaUrls ?? (imageUrl == null ? <String>[] : [imageUrl]),
     };
 
     try {
@@ -189,6 +191,7 @@ class PromotionService {
     required DateTime startsAt,
     required DateTime endsAt,
     String? imageUrl,
+    List<String>? mediaUrls,
   }) async {
     // ----------------------------------------------------------
     // Validações
@@ -246,7 +249,8 @@ class PromotionService {
           : null,
       'starts_at': startsAt.toUtc().toIso8601String(),
       'ends_at': endsAt.toUtc().toIso8601String(),
-      'image_url': imageUrl,
+      'image_url': mediaUrls != null && mediaUrls.isNotEmpty ? mediaUrls.first : imageUrl,
+      'media_urls': mediaUrls ?? (imageUrl == null ? <String>[] : [imageUrl]),
       'updated_at': DateTime.now().toUtc().toIso8601String(),
     };
 
@@ -335,13 +339,16 @@ class PromotionService {
         throw Exception('Recompensa não encontrado.');
       }
 
-      final endsAt = DateTime.tryParse(promotion['ends_at'].toString());
+      final rawEndsAt = promotion['ends_at'];
+      final endsAt = rawEndsAt == null
+          ? null
+          : DateTime.tryParse(rawEndsAt.toString());
 
-      if (endsAt == null) {
+      if (rawEndsAt != null && endsAt == null) {
         throw Exception('A data de validade da recompensa é inválida.');
       }
 
-      if (!endsAt.isAfter(DateTime.now())) {
+      if (endsAt != null && !endsAt.isAfter(DateTime.now())) {
         throw Exception('Esta recompensa já expirou e não pode ser reativada.');
       }
 

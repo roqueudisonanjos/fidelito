@@ -98,7 +98,7 @@ class CustomerService {
         .from('promotions')
         .select(
           'id, company_id, title, description, type, points_required, '
-          'discount_percentage, gift_description, image_url, starts_at, ends_at, companies(name, logo_url)',
+          'discount_percentage, gift_description, image_url, media_urls, starts_at, ends_at, companies(name, logo_url)',
         )
         .inFilter('company_id', companyIds)
         .eq('active', true)

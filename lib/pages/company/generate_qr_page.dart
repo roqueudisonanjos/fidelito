@@ -106,7 +106,7 @@ class _GenerateQrPageState extends State<GenerateQrPage> {
     if (_qrCode == null) return;
     final qr = _qrCode!;
     await SharePlus.instance.share(ShareParams(
-      text: 'Código Vanty para receber ${qr.points} pontos na fidelidade de $_companyName: ${qr.code}',
+      text: 'Código Plim para receber ${qr.points} pontos na fidelidade de $_companyName: ${qr.code}',
     ));
   }
 

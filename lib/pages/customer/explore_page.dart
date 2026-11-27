@@ -6,9 +6,12 @@ import '../../services/loyalty_program_service.dart';
 import '../../services/profile_service.dart';
 import '../../services/share_service.dart';
 import '../../services/company_offer_service.dart';
+import '../../services/publication_view_service.dart';
+import '../../services/company_rating_service.dart';
+import '../../widgets/company_rating_display.dart';
 import '../../core/config/business_categories.dart';
-import '../../core/theme/app_colors.dart';
 import '../../widgets/floating_image_card.dart';
+import '../../widgets/media_gallery_viewer.dart';
 
 class ExplorePage extends StatefulWidget {
   const ExplorePage({super.key});
@@ -20,6 +23,8 @@ class ExplorePage extends StatefulWidget {
 class _ExplorePageState extends State<ExplorePage> {
   final _service = LoyaltyProgramService();
   final _offerService = CompanyOfferService();
+  final _publicationViewService = PublicationViewService();
+  final _companyRatingService = CompanyRatingService();
   final _profileService = ProfileService();
   final _locationService = LocationService();
   final _cityController = TextEditingController();
@@ -118,9 +123,18 @@ class _ExplorePageState extends State<ExplorePage> {
         promotionsFuture,
         offersFuture,
       ]);
+      final loadedCompanies = List<Map<String, dynamic>>.from(results[0]);
+      try {
+        final ratings = await _companyRatingService.getStats(loadedCompanies.map((c) => c['id'].toString()).toList());
+        for (final company in loadedCompanies) {
+          final rating = ratings[company['id']?.toString()];
+          company['rating_average'] = rating?['average_rating'];
+          company['rating_count'] = rating?['rating_count'] ?? 0;
+        }
+      } catch (_) {}
       if (!mounted) return;
       setState(() {
-        _companies = results[0];
+        _companies = loadedCompanies;
         _promotions = results[1];
         _companies.sort((a, b) {
           final aInterested = _customerInterests.contains(a['category']?.toString());
@@ -372,14 +386,22 @@ class _ExplorePageState extends State<ExplorePage> {
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
-        onTap: () => context.push(
-          '/empresa/${company['id']}?oferta=${offer['id']}',
-        ),
+        onTap: () async {
+          await _publicationViewService.recordView(type: 'offer', id: offer['id'].toString());
+          if (!mounted) return;
+          context.push('/empresa/${company['id']}?oferta=${offer['id']}');
+        },
         child: FloatingImageCard(
           padding: _offerPadding,
           imageUrl: image.isEmpty ? null : image,
           imageSize: _offerImageSize,
           blocks: _offerBlocks(offer),
+          mediaCount: offer['media_urls'] is List && (offer['media_urls'] as List).length > 1 ? (offer['media_urls'] as List).length : 1,
+          onImageTap: image.isEmpty ? null : () async {
+            await _publicationViewService.recordView(type: 'offer', id: offer['id'].toString());
+            if (!mounted) return;
+            await showFullscreenMediaGallery(context, urls: List<String>.from(offer['media_urls'] is List ? offer['media_urls'] as List : [image]), description: offer['description']?.toString());
+          },
         ),
       ),
     );
@@ -648,15 +670,16 @@ class _ExplorePageState extends State<ExplorePage> {
             children: [
               Row(
                 children: [
-                  CircleAvatar(
-                    backgroundImage:
-                        (company['logo_url'] ?? '').toString().isNotEmpty
-                        ? NetworkImage(company['logo_url'].toString())
-                        : null,
-                    child: (company['logo_url'] ?? '').toString().isNotEmpty
-                        ? null
-                        : const Icon(Icons.storefront_outlined),
-                  ),
+                  Column(mainAxisSize: MainAxisSize.min, children: [
+                    CircleAvatar(
+                      backgroundImage: (company['logo_url'] ?? '').toString().isNotEmpty
+                          ? NetworkImage(company['logo_url'].toString()) : null,
+                      child: (company['logo_url'] ?? '').toString().isNotEmpty
+                          ? null : const Icon(Icons.storefront_outlined),
+                    ),
+                    const SizedBox(height: 3),
+                    CompanyRatingDisplay(average: (company['rating_average'] as num?)?.toDouble(), count: (company['rating_count'] as num?)?.toInt() ?? 0, compact: true),
+                  ]),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
@@ -729,7 +752,10 @@ class _ExplorePageState extends State<ExplorePage> {
         },
         child: FloatingImageCard(
           padding: _offerPadding,
+          imageUrl: promotion['image_url']?.toString(),
           blocks: _rewardBlocks(promotion),
+          mediaCount: promotion['media_urls'] is List && (promotion['media_urls'] as List).length > 1 ? (promotion['media_urls'] as List).length : 1,
+          onImageTap: (promotion['image_url']?.toString().isNotEmpty ?? false) ? () => showFullscreenMediaGallery(context, urls: List<String>.from(promotion['media_urls'] is List ? promotion['media_urls'] as List : [promotion['image_url']]), description: promotion['description']?.toString()) : null,
         ),
       ),
     );

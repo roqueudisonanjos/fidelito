@@ -47,7 +47,7 @@ class LocationService {
           headers: {
             'Accept': 'application/json',
             'Accept-Language': 'pt-BR',
-            'User-Agent': 'Vanty/1.0 (location lookup)',
+            'User-Agent': 'Plim/1.0 (location lookup)',
           },
         )
         .timeout(const Duration(seconds: 20));

@@ -373,7 +373,7 @@ class _ValidateBenefitPageState extends State<ValidateBenefitPage>
                                   child: avatar.isEmpty ? const Icon(Icons.person_outline) : null,
                                 ),
                                 title: Text(customer['full_name']?.toString() ?? 'Cliente', style: const TextStyle(fontWeight: FontWeight.w600)),
-                                subtitle: Text(customer['whatsapp']?.toString() ?? 'Cliente Vanty'),
+                                subtitle: Text(customer['whatsapp']?.toString() ?? 'Cliente Plim'),
                                 trailing: const Icon(Icons.chevron_right),
                                 onTap: () => _selectCustomer(customer),
                               ),

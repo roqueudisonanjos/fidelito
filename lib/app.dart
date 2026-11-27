@@ -6,14 +6,14 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
 
-class VantyApp extends StatefulWidget {
-  const VantyApp({super.key});
+class PlimApp extends StatefulWidget {
+  const PlimApp({super.key});
 
   @override
-  State<VantyApp> createState() => _VantyAppState();
+  State<PlimApp> createState() => _PlimAppState();
 }
 
-class _VantyAppState extends State<VantyApp> {
+class _PlimAppState extends State<PlimApp> {
   final SupabaseClient _supabase = Supabase.instance.client;
   StreamSubscription<AuthState>? _authSubscription;
   Timer? _companyStatusTimer;
@@ -112,7 +112,7 @@ class _VantyAppState extends State<VantyApp> {
   Widget build(BuildContext context) {
     return MaterialApp.router(
       debugShowCheckedModeBanner: false,
-      title: 'Vanty',
+      title: 'Plim',
       theme: AppTheme.light,
       routerConfig: appRouter,
     );

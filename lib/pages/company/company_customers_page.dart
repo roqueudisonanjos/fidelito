@@ -67,7 +67,7 @@ class _CompanyCustomersPageState extends State<CompanyCustomersPage> {
         content: Text(
           'O cliente "$customerName" deixará de aparecer em Meus clientes. '
           'O saldo de pontos deste programa será zerado e o histórico será preservado. '
-          'Ele continuará tendo sua conta Vanty. Deseja continuar?',
+          'Ele continuará tendo sua conta Plim. Deseja continuar?',
         ),
         actions: [
           TextButton(

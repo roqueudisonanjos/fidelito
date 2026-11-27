@@ -20,13 +20,6 @@ class CompanySuspendedPage extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Empresa suspensa'),
         automaticallyImplyLeading: false,
-        actions: [
-          IconButton(
-            tooltip: 'Suporte ApoloApps',
-            onPressed: () => SupportService.openWhatsApp(context),
-            icon: const Icon(Icons.support_agent_rounded),
-          ),
-        ],
       ),
       body: Center(
         child: SingleChildScrollView(
@@ -53,7 +46,7 @@ class CompanySuspendedPage extends StatelessWidget {
                 const Text(
                   'O programa de fidelidade da sua empresa está suspenso. '
                   'Enquanto a suspensão estiver ativa, sua empresa não poderá '
-                  'utilizar os recursos do Vanty, acessar o painel ou realizar '
+                  'utilizar os recursos do Plim, acessar o painel ou realizar '
                   'operações. Entre em contato com o suporte ApoloApps para obter ajuda.',
                   textAlign: TextAlign.center,
                 ),

@@ -154,7 +154,7 @@ class _RegisterPageState extends State<RegisterPage> {
                       style: Theme.of(context).textTheme.headlineMedium,
                     ),
                     const SizedBox(height: 6),
-                    const Text('Crie sua conta para aproveitar o Vanty.'),
+                    const Text('Crie sua conta para aproveitar o Plim.'),
                     const SizedBox(height: 24),
                     TextField(
                       controller: nameController,

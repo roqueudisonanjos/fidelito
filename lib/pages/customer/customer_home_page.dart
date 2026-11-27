@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-
 import '../../core/theme/app_colors.dart';
 import '../../models/loyalty_transaction.dart';
 import '../../models/promotion.dart';
@@ -11,10 +10,15 @@ import '../../services/support_service.dart';
 import '../../services/share_service.dart';
 import '../../services/notification_service.dart';
 import '../../services/company_offer_service.dart';
+import '../../services/company_story_service.dart';
+import '../../services/publication_view_service.dart';
 import '../../services/loyalty_program_service.dart';
+import '../../services/company_rating_service.dart';
+import '../../widgets/company_rating_display.dart';
 import '../../services/qr_service.dart';
 import '../../widgets/help_tutorial_dialog.dart';
 import '../../widgets/floating_image_card.dart';
+import '../../widgets/media_gallery_viewer.dart';
 
 class CustomerHomePage extends StatefulWidget {
   const CustomerHomePage({super.key});
@@ -25,36 +29,48 @@ class CustomerHomePage extends StatefulWidget {
 
 class _CustomerHomePageState extends State<CustomerHomePage> {
   final PromotionService promotionService = PromotionService();
-
   final CustomerService customerService = CustomerService();
-
   final AuthService authService = AuthService();
-
   final NotificationService _notificationService = NotificationService();
   final CompanyOfferService _companyOfferService = CompanyOfferService();
+  final CompanyStoryService _companyStoryService = CompanyStoryService();
+  final PublicationViewService _publicationViewService = PublicationViewService();
   final LoyaltyProgramService _loyaltyProgramService = LoyaltyProgramService();
+  final CompanyRatingService _companyRatingService = CompanyRatingService();
+
+  Set<String> _viewedStoryIds = <String>{};
   late Future<int> _unreadNotificationsFuture;
-
   bool loading = true;
-
   String customerName = '';
   String? customerAvatarUrl;
-
   Map<String, int> companyPoints = {};
-
+  Map<String, dynamic> _ratings = {};
   List<Promotion> promotions = [];
   List<Map<String, dynamic>> offers = [];
+  List<Map<String, dynamic>> stories = [];
   List<Map<String, dynamic>> companies = [];
-
-
   List<LoyaltyTransaction> transactions = [];
-
   String? error;
+  bool _locationPromptShown = false;
+
+  // Tamanho dos cards
+  static const double _cardWidth = 300;
+  static const int _descriptionMaxChars = 80;
+
+  // Cards de oferta
+  static const double _offerImageSize = 110;
+  static const EdgeInsets _offerPadding = EdgeInsets.fromLTRB(12, 12, 12, 8);
+
+  // Cards de recompensa
+  static const double _rewardImageSize = 70;
+
+  // Cards de empresa
+  static const double _companyCardWidth = 260;
+  static const double _companyCardHeight = 330;
 
   @override
   void initState() {
     super.initState();
-
     _unreadNotificationsFuture = _notificationService.getUnreadCount();
     loadData();
   }
@@ -71,10 +87,8 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Você não possui pontos suficientes.')),
       );
-
       return;
     }
-
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) {
@@ -103,16 +117,12 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
         );
       },
     );
-    
     if (confirmed != true) {
       return;
     }
-
     try {
       final result = await promotionService.redeemPromotion(promotion.id);
-
       if (!mounted) return;
-
       await showDialog(
         context: context,
         barrierDismissible: false,
@@ -135,11 +145,9 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
           );
         },
       );
-
       await loadData();
     } catch (e) {
       if (!mounted) return;
-
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
       );
@@ -164,7 +172,6 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
     final companyCity = _normalizeLocation(company?['city']?.toString());
     final customerState = _normalizeLocation(profile?['state']?.toString());
     final companyState = _normalizeLocation(company?['state']?.toString());
-
     if (customerCity.isEmpty || companyCity.isEmpty || customerCity != companyCity) {
       return false;
     }
@@ -187,7 +194,9 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
     };
     final normalizedCustomerState = stateAliases[customerState] ?? customerState;
     final normalizedCompanyState = stateAliases[companyState] ?? companyState;
-    return customerState.isEmpty || companyState.isEmpty || normalizedCustomerState == normalizedCompanyState;
+    return customerState.isEmpty ||
+        companyState.isEmpty ||
+        normalizedCustomerState == normalizedCompanyState;
   }
 
   Future<List<Map<String, dynamic>>> _loadOffersSafely(Map<String, dynamic>? profile) async {
@@ -204,7 +213,6 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
     }
   }
 
-
   Future<List<Map<String, dynamic>>> _loadCompaniesSafely(Map<String, dynamic>? profile) async {
     try {
       // Discovery is restricted to the customer's exact city on the Home page.
@@ -215,7 +223,8 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
         city: null,
         state: null,
       );
-      final localResults = results.where((company) => _isSameCustomerCity(company, profile)).toList();
+      final localResults =
+          results.where((company) => _isSameCustomerCity(company, profile)).toList();
       final interests = Set<String>.from(profile?['customer_interests'] ?? const []);
       localResults.sort((a, b) {
         final matchA = interests.contains(a['category']?.toString()) ? 1 : 0;
@@ -229,13 +238,11 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
     }
   }
 
-
   Future<void> loadData() async {
     setState(() {
       loading = true;
       error = null;
     });
-
     try {
       final profile = await customerService.getProfile();
       final results = await Future.wait([
@@ -244,17 +251,43 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
         customerService.getTransactions(),
         _loadOffersSafely(profile),
       ]);
-
       final loadedCompanyPoints = results[0] as Map<String, int>;
-
       final loadedPromotions = (results[1] as List<Promotion>)
           .where((promotion) => promotion.pointsRequired > 0)
           .toList();
-
       final loadedTransactions = results[2] as List<LoyaltyTransaction>;
       final loadedOffers = results[3] as List<Map<String, dynamic>>;
       final loadedCompanies = await _loadCompaniesSafely(profile);
+      final city = profile?['city']?.toString().trim() ?? '';
+      final state = profile?['state']?.toString().trim() ?? '';
+      List<Map<String, dynamic>> loadedStories = [];
+      if (city.isNotEmpty && state.isNotEmpty) {
+        try {
+          loadedStories = await _companyStoryService.getPublicStories(
+            city: city,
+            state: state,
+          );
+        } catch (_) {
+          loadedStories = [];
+        }
+      }
       final loadedInterests = Set<String>.from(profile?['customer_interests'] ?? const []);
+      final viewedStories = await _publicationViewService.getViewedStoryIds();
+      loadedStories.sort((a, b) {
+        final aSeen = viewedStories.contains(a['id']?.toString()) ? 1 : 0;
+        final bSeen = viewedStories.contains(b['id']?.toString()) ? 1 : 0;
+        return aSeen.compareTo(bSeen);
+      });
+      try {
+        final ratings = await _companyRatingService.getStats(
+          loadedCompanies.map((c) => c['id'].toString()).toList(),
+        );
+        for (final company in loadedCompanies) {
+          final rating = ratings[company['id']?.toString()];
+          company['rating_average'] = rating?['average_rating'];
+          company['rating_count'] = rating?['rating_count'] ?? 0;
+        }
+      } catch (_) {}
       loadedOffers.sort((a, b) {
         final categoryA = (a['companies']?['category']?.toString() ?? '');
         final categoryB = (b['companies']?['category']?.toString() ?? '');
@@ -262,32 +295,71 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
         final scoreB = loadedInterests.contains(categoryB) ? 1 : 0;
         return scoreB.compareTo(scoreA);
       });
-
+      final companyIdsForRatings = <String>{
+        for (final offer in loadedOffers) (offer['companies']?['id'] ?? '').toString(),
+        for (final promotion in loadedPromotions) promotion.companyId,
+      }..removeWhere((id) => id.isEmpty || id == 'null');
+      Map<String, dynamic> loadedRatings = {};
+      try {
+        loadedRatings = await _companyRatingService.getStats(
+          companyIdsForRatings.toList(),
+        );
+      } catch (_) {}
       if (!mounted) return;
-
       setState(() {
+        _ratings = loadedRatings;
         customerName = profile?['full_name'] ?? 'Cliente';
         customerAvatarUrl = profile?['avatar_url']?.toString();
-
         companyPoints = loadedCompanyPoints;
-
         promotions = loadedPromotions;
-
         transactions = loadedTransactions;
-
         offers = loadedOffers;
+        stories = loadedStories;
+        _viewedStoryIds = viewedStories;
         companies = loadedCompanies;
-
         loading = false;
       });
+      if (!_locationPromptShown &&
+          ((profile?['city']?.toString().trim() ?? '').isEmpty ||
+              (profile?['state']?.toString().trim() ?? '').isEmpty)) {
+        _locationPromptShown = true;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _showLocationSetupNotice();
+        });
+      }
     } catch (e) {
       if (!mounted) return;
-
       setState(() {
         error = 'Não foi possível carregar seus dados.';
-
         loading = false;
       });
+    }
+  }
+
+  Future<void> _showLocationSetupNotice() async {
+    final shouldEdit = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        icon: const Icon(Icons.location_on_outlined, size: 36),
+        title: const Text('Personalize sua experiência'),
+        content: const Text(
+          'Configure sua cidade e Estado em Dados Cadastrais para que o Plim mostre ofertas e destaques das empresas da sua região.',
+        ),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Configurar meus dados'),
+          ),
+        ],
+      ),
+    );
+    if (shouldEdit == true && mounted) {
+      await context.push('/profile/edit');
+      if (mounted) {
+        _locationPromptShown = false;
+        await loadData();
+      }
     }
   }
 
@@ -301,10 +373,14 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
 
   Future<void> logout() async {
     await authService.logout();
-
     if (!mounted) return;
-
     context.go('/login');
+  }
+
+  /// Abre "Sobre a empresa" usando o contexto da própria tela.
+  void _openCompanyDetails(Map<String, dynamic> company) {
+    if (!mounted) return;
+    context.push('/customer/company-details', extra: company);
   }
 
   @override
@@ -324,7 +400,7 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
         ),
         actions: [
           IconButton(
-            tooltip: 'Compartilhar Vanty',
+            tooltip: 'Compartilhar Plim',
             icon: const Icon(Icons.share_rounded),
             onPressed: () => ShareService.shareApp(),
           ),
@@ -407,9 +483,13 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
 
   Widget _buildContent() {
     return ListView(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
       children: [
-        const SizedBox(height: 24),
+        const SizedBox(height: 4),
+        if (stories.isNotEmpty) ...[
+          _buildStories(),
+          const SizedBox(height: 24),
+        ],
         _buildOffers(),
         const SizedBox(height: 24),
         _buildCompanies(),
@@ -419,7 +499,7 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
       ],
     );
   }
-  
+
   Widget _buildBottomNavigationBar() {
     return BottomAppBar(
       shape: const CircularNotchedRectangle(),
@@ -490,7 +570,6 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
     }
   }
 
-
   Future<void> _enterManualQrCode() async {
     final controller = TextEditingController();
     final code = await showDialog<String>(
@@ -541,7 +620,10 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
                 : 'Você ganhou $points pontos.\n\nSeu novo saldo é $balance pontos.',
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('OK')),
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('OK'),
+            ),
           ],
         ),
       );
@@ -560,9 +642,145 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
     if (result == true) await loadData();
   }
 
+  // ---------- Destaques ----------
+
+  /// Mídias do destaque. Usa a lista de mídias e, se estiver vazia, a mídia única.
+  List<String> _storyMedia(Map<String, dynamic> story) {
+    final raw = story['media_urls'];
+    final list = raw is List
+        ? raw.map((e) => e?.toString() ?? '').where((e) => e.isNotEmpty).toList()
+        : <String>[];
+    if (list.isEmpty) {
+      final single = story['media_url']?.toString() ?? '';
+      if (single.isNotEmpty) list.add(single);
+    }
+    return list;
+  }
+
+  /// Empresa do destaque, com o id garantido quando vier em outro campo.
+  Map<String, dynamic> _storyCompany(Map<String, dynamic> story) {
+    final company = Map<String, dynamic>.from(story['companies'] ?? {});
+    company['id'] ??= story['company_id'] ?? story['companyId'];
+    return company;
+  }
+
+  void _markStoryViewed(int index) {
+    if (index < 0 || index >= stories.length) return;
+    final id = stories[index]['id']?.toString();
+    if (id == null || id.isEmpty) return;
+    _publicationViewService.recordView(type: 'story', id: id);
+    if (!mounted) return;
+    setState(() => _viewedStoryIds.add(id));
+  }
+
+  Future<void> _openStory(int index) async {
+    final sequence = [
+      for (final story in stories)
+        MediaStory(
+          urls: _storyMedia(story),
+          description: story['description']?.toString(),
+          title: _storyCompany(story)['name']?.toString(),
+          onTitleTap: () => _openCompanyDetails(_storyCompany(story)),
+        ),
+    ];
+    await showFullscreenStoryViewer(
+      context,
+      stories: sequence,
+      initialStoryIndex: index,
+      onStoryViewed: _markStoryViewed,
+    );
+  }
+
+  Widget _buildStories() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Destaques', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 112,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: stories.length,
+            separatorBuilder: (_, _) => const SizedBox(width: 12),
+            itemBuilder: (context, index) {
+              final story = stories[index];
+              final company = _storyCompany(story);
+              final media = _storyMedia(story);
+              final storyId = story['id']?.toString() ?? '';
+              final seen = _viewedStoryIds.contains(storyId);
+              final avatarUrl = media.isNotEmpty ? media.first : '';
+              return InkWell(
+                onTap: () => _openStory(index),
+                child: SizedBox(
+                  width: 78,
+                  child: Column(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(3),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: seen ? Colors.grey : AppColors.primary,
+                            width: 2,
+                          ),
+                        ),
+                        child: Stack(
+                          children: [
+                            CircleAvatar(
+                              radius: 32,
+                              backgroundColor: Colors.grey.shade200,
+                              backgroundImage:
+                                  avatarUrl.isNotEmpty ? NetworkImage(avatarUrl) : null,
+                              child: avatarUrl.isEmpty
+                                  ? const Icon(Icons.image_outlined)
+                                  : null,
+                            ),
+                            if (media.length > 1)
+                              Positioned(
+                                right: 0,
+                                bottom: 0,
+                                child: Container(
+                                  padding: const EdgeInsets.all(3),
+                                  decoration: const BoxDecoration(
+                                    color: Colors.black87,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Text(
+                                    '${media.length}',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        company['name']?.toString() ?? 'Empresa',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 11),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ---------- Ofertas ----------
+
   Widget _buildOffers() {
     final visible = offers.take(10).toList();
-
     // Altura de cada card, calculada pelo conteúdo
     final heights = visible
         .map(
@@ -577,10 +795,8 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
           ),
         )
         .toList();
-
     // A lista usa a altura do card mais alto
     final listHeight = heights.fold<double>(0, (acc, h) => h > acc ? h : acc);
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -625,7 +841,6 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
 
   Widget _buildOfferCard(Map<String, dynamic> offer) {
     final company = Map<String, dynamic>.from(offer['companies'] ?? {});
-
     return Card(
       margin: EdgeInsets.zero,
       clipBehavior: Clip.antiAlias,
@@ -635,66 +850,59 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
-        onTap: () => context.push(
-          '/empresa/${company['id']}?oferta=${offer['id']}',
-        ),
+        onTap: () async {
+          await _publicationViewService.recordView(type: 'offer', id: offer['id'].toString());
+          if (!mounted) return;
+          context.push('/empresa/${company['id']}?oferta=${offer['id']}');
+        },
         child: FloatingImageCard(
           padding: _offerPadding,
           imageUrl: _offerImage(offer).isEmpty ? null : _offerImage(offer),
           imageSize: _offerImageSize,
           blocks: _offerBlocks(offer),
+          mediaCount: _offerMediaUrls(offer).length,
+          onImageTap: _offerMediaUrls(offer).isEmpty
+              ? null
+              : () => showFullscreenMediaGallery(
+                    context,
+                    urls: _offerMediaUrls(offer),
+                    title: offer['title']?.toString(),
+                    description: offer['description']?.toString(),
+                  ),
         ),
       ),
     );
   }
 
   String _offerImage(Map<String, dynamic> offer) {
-    return offer['image_url']?.toString() ?? '';
+    final urls = _offerMediaUrls(offer);
+    return offer['image_url']?.toString() ?? (urls.isNotEmpty ? urls.first : '');
   }
 
-  /// Cabeçalho: logo pequena, nome da empresa e botão de compartilhar.
-  Widget _offerHeader(Map<String, dynamic> offer, Map<String, dynamic> company) {
-    final logo = company['logo_url']?.toString() ?? '';
-    final name = company['name']?.toString() ?? 'Empresa';
-    final bodyStyle = Theme.of(context).textTheme.bodyMedium!;
-    final primary = Theme.of(context).colorScheme.primary;
+  List<String> _offerMediaUrls(Map<String, dynamic> offer) {
+    final raw = offer['media_urls'];
+    final urls = raw is List
+        ? raw.map((value) => value.toString()).where((value) => value.trim().isNotEmpty).toList()
+        : <String>[];
+    final primary = offer['image_url']?.toString() ?? '';
+    if (urls.isEmpty && primary.isNotEmpty) urls.add(primary);
+    if (urls.isNotEmpty && primary.isNotEmpty && !urls.contains(primary)) urls.insert(0, primary);
+    return urls;
+  }
 
-    return Row(
-      children: [
-        CircleAvatar(
-          radius: 10,
-          backgroundImage: logo.isNotEmpty ? NetworkImage(logo) : null,
-          child: logo.isEmpty ? const Icon(Icons.storefront, size: 12) : null,
-        ),
-        const SizedBox(width: 6),
-        Expanded(
-          child: Text(
-            name,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: bodyStyle.copyWith(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: primary,
-            ),
-          ),
-        ),
-        IconButton(
-          tooltip: 'Compartilhar oferta',
-          visualDensity: VisualDensity.compact,
-          constraints: const BoxConstraints.tightFor(width: 36, height: 36),
-          padding: EdgeInsets.zero,
-          onPressed: () => ShareService.shareOffer(
-            companyName: name,
-            title: offer['title']?.toString() ?? 'Oferta',
-            description: offer['description']?.toString(),
-            companyLogoUrl: company['logo_url']?.toString(),
-            companyId: company['id']?.toString(),
-            offerId: offer['id']?.toString(),
-          ),
-          icon: const Icon(Icons.share_outlined),
-        ),
-      ],
+  Widget _offerHeader(Map<String, dynamic> offer, Map<String, dynamic> company) {
+    final name = company['name']?.toString() ?? 'Empresa';
+    return _companyHeader(
+      company: company,
+      tooltip: 'Compartilhar oferta',
+      onShare: () => ShareService.shareOffer(
+        companyName: name,
+        title: offer['title']?.toString() ?? 'Oferta',
+        description: offer['description']?.toString(),
+        companyLogoUrl: company['logo_url']?.toString(),
+        companyId: company['id']?.toString(),
+        offerId: offer['id']?.toString(),
+      ),
     );
   }
 
@@ -706,11 +914,10 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
         ? 'Validade não informada'
         : 'Válida até ${_formatDateOnly(endDate)}';
     final bodyStyle = Theme.of(context).textTheme.bodyMedium!;
-
     return [
       FloatBlock.widget(
         _offerHeader(offer, company),
-        height: 36,
+        height: 40,
         spacing: 6,
       ),
       FloatBlock.text(
@@ -739,6 +946,8 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
     ];
   }
 
+  // ---------- Empresas ----------
+
   Widget _buildCompanies() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -749,7 +958,7 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
           const Card(child: Padding(padding: EdgeInsets.all(18), child: Text('Ainda não há empresas disponíveis para mostrar.')))
         else
           SizedBox(
-            height: 250,
+            height: _companyCardHeight,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               itemCount: companies.length > 10 ? 10 : companies.length,
@@ -761,19 +970,42 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
                     .where((value) => value != null && value.toString().isNotEmpty)
                     .join(' - ');
                 return SizedBox(
-                  width: 220,
+                  width: _companyCardWidth,
                   child: Card(
                     clipBehavior: Clip.antiAlias,
                     child: InkWell(
-                      onTap: () => context.push('/customer/company-details', extra: company),
+                      onTap: () => _openCompanyDetails(company),
                       child: Padding(
                         padding: const EdgeInsets.all(14),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Center(child: CircleAvatar(radius: 32, backgroundImage: logo.isNotEmpty ? NetworkImage(logo) : null, child: logo.isEmpty ? const Icon(Icons.storefront_outlined, size: 30) : null)),
-                            const SizedBox(height: 12),
-                            Text(company['name']?.toString() ?? 'Empresa', maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                            Center(
+                              child: Column(
+                                children: [
+                                  CircleAvatar(
+                                    radius: 32,
+                                    backgroundImage: logo.isNotEmpty ? NetworkImage(logo) : null,
+                                    child: logo.isEmpty
+                                        ? const Icon(Icons.storefront_outlined, size: 30)
+                                        : null,
+                                  ),
+                                  const SizedBox(height: 4),
+                                  CompanyRatingDisplay(
+                                    average: (company['rating_average'] as num?)?.toDouble(),
+                                    count: (company['rating_count'] as num?)?.toInt() ?? 0,
+                                    compact: true,
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              company['name']?.toString() ?? 'Empresa',
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                            ),
                             if ((company['category']?.toString() ?? '').trim().isNotEmpty)
                               Padding(
                                 padding: const EdgeInsets.only(top: 6),
@@ -788,17 +1020,31 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
                                 ),
                               ),
                             if (location.isNotEmpty)
-                              Padding(padding: const EdgeInsets.only(top: 4), child: Text(location, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12, color: Colors.grey))),
+                              Padding(
+                                padding: const EdgeInsets.only(top: 4),
+                                child: Text(
+                                  location,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                                ),
+                              ),
                             const Spacer(),
                             Row(
                               children: [
-                                const Expanded(child: Text('Ver empresa', style: TextStyle(fontWeight: FontWeight.w600))),
+                                const Expanded(
+                                  child: Text('Ver empresa', style: TextStyle(fontWeight: FontWeight.w600)),
+                                ),
                                 IconButton(
                                   tooltip: 'Compartilhar empresa',
                                   visualDensity: VisualDensity.compact,
                                   constraints: const BoxConstraints.tightFor(width: 36, height: 36),
                                   padding: EdgeInsets.zero,
-                                  onPressed: () => ShareService.shareCompanyClub(companyName: company['name']?.toString() ?? 'Empresa', companyLogoUrl: logo, companyId: company['id']?.toString()),
+                                  onPressed: () => ShareService.shareCompanyClub(
+                                    companyName: company['name']?.toString() ?? 'Empresa',
+                                    companyLogoUrl: logo,
+                                    companyId: company['id']?.toString(),
+                                  ),
                                   icon: const Icon(Icons.share_outlined),
                                 ),
                               ],
@@ -812,27 +1058,36 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
               },
             ),
           ),
-        Align(alignment: Alignment.centerRight, child: TextButton.icon(onPressed: () => context.push('/customer/explore'), icon: const Icon(Icons.arrow_forward), label: const Text('Descobrir mais empresas'))),
+        Align(
+          alignment: Alignment.centerRight,
+          child: TextButton.icon(
+            onPressed: () => context.push('/customer/explore'),
+            icon: const Icon(Icons.arrow_forward),
+            label: const Text('Descobrir mais empresas'),
+          ),
+        ),
       ],
     );
   }
 
+  // ---------- Recompensas ----------
+
   Widget _buildPromotions() {
     final visible = promotions.take(10).toList();
-
     final heights = visible
         .map(
           (promotion) => FloatingImageCard.measureHeight(
             context,
             blocks: _rewardBlocks(promotion),
+            imageUrl: promotion.imageUrl,
+            imageSize: _rewardImageSize,
+            gap: 12,
             width: _cardWidth,
             padding: _offerPadding,
           ),
         )
         .toList();
-
     final listHeight = heights.fold<double>(0, (acc, h) => h > acc ? h : acc);
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -904,11 +1159,36 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
           if (left == true && mounted) await loadData();
         },
         child: FloatingImageCard(
+          imageSize: _rewardImageSize,
           padding: _offerPadding,
+          imageUrl: promotion.imageUrl,
           blocks: _rewardBlocks(promotion),
+          mediaCount: _promotionMediaUrls(promotion).length,
+          onImageTap: _promotionMediaUrls(promotion).isEmpty
+              ? null
+              : () => showFullscreenMediaGallery(
+                    context,
+                    urls: _promotionMediaUrls(promotion),
+                    title: promotion.title,
+                    description: promotion.description,
+                  ),
         ),
       ),
     );
+  }
+
+
+  List<String> _promotionMediaUrls(Promotion promotion) {
+    final urls = promotion.mediaUrls
+        .map((url) => url.trim())
+        .where((url) => url.isNotEmpty)
+        .toList();
+    final primary = promotion.imageUrl?.trim() ?? '';
+    if (urls.isEmpty && primary.isNotEmpty) urls.add(primary);
+    if (urls.isNotEmpty && primary.isNotEmpty && !urls.contains(primary)) {
+      urls.insert(0, primary);
+    }
+    return urls;
   }
 
   List<FloatBlock> _rewardBlocks(Promotion promotion) {
@@ -921,9 +1201,8 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
     final description = _limitText(promotion.description ?? '');
     final bodyStyle = Theme.of(context).textTheme.bodyMedium!;
     final primary = Theme.of(context).colorScheme.primary;
-
     return [
-      FloatBlock.widget(_rewardHeader(promotion), height: 36, spacing: 6),
+      FloatBlock.widget(_rewardHeader(promotion), height: 40, spacing: 6),
       FloatBlock.text(
         promotion.title,
         bodyStyle.copyWith(fontWeight: FontWeight.bold, fontSize: 16),
@@ -975,53 +1254,28 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
     ];
   }
 
-  /// Cabeçalho da recompensa: logo, nome da empresa e compartilhar.
   Widget _rewardHeader(Promotion promotion) {
-    final logo = promotion.companyLogoUrl ?? '';
     final name = promotion.companyName?.trim().isNotEmpty == true
         ? promotion.companyName!.trim()
         : 'Empresa';
-    final bodyStyle = Theme.of(context).textTheme.bodyMedium!;
-    final primary = Theme.of(context).colorScheme.primary;
-
-    return Row(
-      children: [
-        CircleAvatar(
-          radius: 10,
-          backgroundImage: logo.isNotEmpty ? NetworkImage(logo) : null,
-          child: logo.isEmpty ? const Icon(Icons.storefront, size: 12) : null,
-        ),
-        const SizedBox(width: 6),
-        Expanded(
-          child: Text(
-            name,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: bodyStyle.copyWith(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: primary,
-            ),
-          ),
-        ),
-        IconButton(
-          tooltip: 'Compartilhar recompensa',
-          visualDensity: VisualDensity.compact,
-          constraints: const BoxConstraints.tightFor(width: 36, height: 36),
-          padding: EdgeInsets.zero,
-          onPressed: () => ShareService.sharePromotion(
-            companyName: name,
-            title: promotion.title,
-            type: promotion.type,
-            discountPercentage: promotion.discountPercentage?.toStringAsFixed(0),
-            giftDescription: promotion.giftDescription,
-            description: promotion.description,
-            companyLogoUrl: promotion.companyLogoUrl,
-            companyId: promotion.companyId,
-          ),
-          icon: const Icon(Icons.share_outlined),
-        ),
-      ],
+    final company = <String, dynamic>{
+      'id': promotion.companyId,
+      'name': name,
+      'logo_url': promotion.companyLogoUrl ?? '',
+    };
+    return _companyHeader(
+      company: company,
+      tooltip: 'Compartilhar recompensa',
+      onShare: () => ShareService.sharePromotion(
+        companyName: name,
+        title: promotion.title,
+        type: promotion.type,
+        discountPercentage: promotion.discountPercentage?.toStringAsFixed(0),
+        giftDescription: promotion.giftDescription,
+        description: promotion.description,
+        companyLogoUrl: promotion.companyLogoUrl,
+        companyId: promotion.companyId,
+      ),
     );
   }
 
@@ -1065,24 +1319,76 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
     );
   }
 
-  String _formatDateOnly(DateTime date) {
-    final day = date.day.toString().padLeft(2, '0');
+  // ---------- Cabeçalho compartilhado (logo, nome clicável com avaliação, compartilhar) ----------
 
-    final month = date.month.toString().padLeft(2, '0');
-
-    final year = date.year.toString();
-
-    return '$day/$month/$year';
+  Map<String, dynamic>? _ratingOf(String? companyId) {
+    if (companyId == null || companyId.isEmpty) return null;
+    final value = _ratings[companyId];
+    return value is Map ? Map<String, dynamic>.from(value) : null;
   }
 
-  // Tamanho dos cards
-  static const double _cardWidth = 270;
-  static const double _cardHeight = 280; // recompensas
-  static const int _descriptionMaxChars = 80;
+  Widget _companyHeader({
+    required Map<String, dynamic> company,
+    required String tooltip,
+    required VoidCallback onShare,
+  }) {
+    final logo = company['logo_url']?.toString() ?? '';
+    final name = company['name']?.toString() ?? 'Empresa';
+    final companyId = company['id']?.toString();
+    final rating = _ratingOf(companyId);
+    final bodyStyle = Theme.of(context).textTheme.bodyMedium!;
+    final primary = Theme.of(context).colorScheme.primary;
+    final canOpen = companyId != null && companyId.isNotEmpty && companyId != 'null';
+    return Row(
+      children: [
+        CircleAvatar(
+          radius: 10,
+          backgroundImage: logo.isNotEmpty ? NetworkImage(logo) : null,
+          child: logo.isEmpty ? const Icon(Icons.storefront, size: 12) : null,
+        ),
+        const SizedBox(width: 6),
+        Expanded(
+          child: InkWell(
+            borderRadius: BorderRadius.circular(6),
+            onTap: canOpen ? () => _openCompanyDetails(company) : null,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: bodyStyle.copyWith(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: primary,
+                    decoration: TextDecoration.underline,
+                    decorationColor: primary.withValues(alpha: .4),
+                  ),
+                ),
+                CompanyRatingDisplay(
+                  average: (rating?['average_rating'] as num?)?.toDouble(),
+                  count: (rating?['rating_count'] as num?)?.toInt() ?? 0,
+                  compact: true,
+                ),
+              ],
+            ),
+          ),
+        ),
+        IconButton(
+          tooltip: tooltip,
+          visualDensity: VisualDensity.compact,
+          constraints: const BoxConstraints.tightFor(width: 36, height: 36),
+          padding: EdgeInsets.zero,
+          onPressed: onShare,
+          icon: const Icon(Icons.share_outlined),
+        ),
+      ],
+    );
+  }
 
-  // Cards de oferta
-  static const double _offerImageSize = 110;
-  static const EdgeInsets _offerPadding = EdgeInsets.fromLTRB(12, 12, 12, 8);
+  // ---------- Utilitários ----------
 
   String _limitText(String text, [int max = _descriptionMaxChars]) {
     final trimmed = text.trim();
@@ -1098,5 +1404,12 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
       if (date != null) return date.toLocal();
     }
     return null;
+  }
+
+  String _formatDateOnly(DateTime date) {
+    final day = date.day.toString().padLeft(2, '0');
+    final month = date.month.toString().padLeft(2, '0');
+    final year = date.year.toString();
+    return '$day/$month/$year';
   }
 }

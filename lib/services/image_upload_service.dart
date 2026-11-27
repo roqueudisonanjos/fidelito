@@ -9,6 +9,57 @@ class ImageUploadService {
   final SupabaseClient _client = Supabase.instance.client;
   final ImagePicker _picker = ImagePicker();
 
+  static const int maxImageBytes = 5 * 1024 * 1024;
+  static const int maxVideoBytes = 15 * 1024 * 1024;
+  static const int maxMediaCount = 5;
+
+  Future<List<String>> pickAndUploadMultiple({
+    required String folder,
+    required String filePrefix,
+    int maxCount = maxMediaCount,
+  }) async {
+    final picked = await _picker.pickMultipleMedia(
+      limit: maxCount,
+      imageQuality: 80,
+      maxWidth: 1600,
+    );
+    if (picked.isEmpty) return [];
+    if (picked.length > maxMediaCount) {
+      throw Exception('Selecione no máximo 5 mídias.');
+    }
+
+    final user = _client.auth.currentUser;
+    if (user == null) throw Exception('Usuário não autenticado.');
+    final prepared = <({Uint8List bytes, String mime, String extension})>[];
+    for (final file in picked) {
+      final bytes = await file.readAsBytes();
+      final mime = file.mimeType ?? '';
+      final isVideo = mime.startsWith('video/') ||
+          RegExp(r'\.(mp4|mov|m4v|webm)$', caseSensitive: false).hasMatch(file.name);
+      final maxBytes = isVideo ? maxVideoBytes : maxImageBytes;
+      if (bytes.length > maxBytes) {
+        final limit = isVideo ? '15 MB' : '5 MB';
+        throw Exception('${file.name} ultrapassa o limite de $limit.');
+      }
+      final extension = file.name.contains('.')
+          ? file.name.split('.').last.toLowerCase()
+          : (isVideo ? 'mp4' : 'jpg');
+      prepared.add((bytes: bytes, mime: mime, extension: extension));
+    }
+
+    final urls = <String>[];
+    for (final media in prepared) {
+      final path = '$folder/${user.id}/$filePrefix-${DateTime.now().microsecondsSinceEpoch}-${urls.length}.${media.extension}';
+      await _client.storage.from('fidelito-images').uploadBinary(
+        path,
+        media.bytes,
+        fileOptions: FileOptions(upsert: true, contentType: media.mime.isNotEmpty ? media.mime : _contentType(media.extension)),
+      );
+      urls.add(_client.storage.from('fidelito-images').getPublicUrl(path));
+    }
+    return urls;
+  }
+
   Future<String?> pickAndUpload({
     required String folder,
     required String filePrefix,
@@ -67,7 +118,7 @@ class ImageUploadService {
             minContainerWidth: 240,
             minContainerHeight: 180,
             customDialogBuilder: (cropper, initCropper, crop, rotate, scale) {
-              return _VantyWebCropDialog(
+              return _PlimWebCropDialog(
                 cropper: cropper,
                 initCropper: initCropper,
                 crop: crop,
@@ -140,6 +191,13 @@ class ImageUploadService {
         return 'image/webp';
       case 'heic':
         return 'image/heic';
+      case 'mp4':
+        return 'video/mp4';
+      case 'mov':
+      case 'm4v':
+        return 'video/quicktime';
+      case 'webm':
+        return 'video/webm';
       default:
         return 'image/jpeg';
     }
@@ -147,15 +205,15 @@ class ImageUploadService {
 }
 
 
-/// Dialog Web próprio do Vanty. O Cropper fornece a área de edição,
+/// Dialog Web próprio do Plim. O Cropper fornece a área de edição,
 /// enquanto os botões e a confirmação ficam sob controle da aplicação.
-class _VantyWebCropDialog extends StatefulWidget {
+class _PlimWebCropDialog extends StatefulWidget {
   final Widget cropper;
   final void Function() initCropper;
   final Future<String?> Function() crop;
   final void Function(RotationAngle) rotate;
 
-  const _VantyWebCropDialog({
+  const _PlimWebCropDialog({
     required this.cropper,
     required this.initCropper,
     required this.crop,
@@ -163,10 +221,10 @@ class _VantyWebCropDialog extends StatefulWidget {
   });
 
   @override
-  State<_VantyWebCropDialog> createState() => _VantyWebCropDialogState();
+  State<_PlimWebCropDialog> createState() => _PlimWebCropDialogState();
 }
 
-class _VantyWebCropDialogState extends State<_VantyWebCropDialog> {
+class _PlimWebCropDialogState extends State<_PlimWebCropDialog> {
   bool _isCropping = false;
 
   @override

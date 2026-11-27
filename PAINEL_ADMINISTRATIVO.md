@@ -102,3 +102,9 @@ Não é necessária nova migração SQL. A recuperação utiliza a tabela `compa
 ## Suspensão de empresas
 
 A opção **Desativar empresa** suspende o programa, notifica os clientes com adesão ativa, preserva os pontos e bloqueia o login do responsável. Sessões abertas são encaminhadas à tela de empresa suspensa. Para habilitar novamente, use **Ativar empresa**. Execute também a migração `20261116000100_company_suspension.sql` e publique `supabase functions deploy admin-console`.
+
+## Galeria de mídias em ofertas, recompensas e destaques
+
+A migração `supabase/migrations/20261125000200_story_offer_multiple_media.sql` adiciona `media_urls` (até 5 URLs) às ofertas, recompensas e destaques, além do texto opcional dos destaques. Execute-a no SQL Editor do Supabase antes de publicar a versão atualizada do app.
+
+Limites de upload no aplicativo: imagens até 5 MB por arquivo e vídeos até 15 MB por arquivo; cada publicação aceita no máximo 5 mídias. As imagens são reduzidas durante a seleção (largura máxima de 1600 px e qualidade 80). Vídeos são enviados sem recompressão e precisam respeitar o limite de tamanho.

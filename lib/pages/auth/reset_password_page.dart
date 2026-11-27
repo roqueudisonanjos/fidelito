@@ -113,7 +113,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                       const SizedBox(height: 8),
                       Text(
                         _success
-                            ? 'Sua senha foi alterada com segurança. Agora você já pode continuar usando o Vanty.'
+                            ? 'Sua senha foi alterada com segurança. Agora você já pode continuar usando o Plim.'
                             : 'Escolha uma senha com pelo menos 8 caracteres para voltar a acessar sua conta.',
                         style: Theme.of(context).textTheme.bodyMedium,
                       ),
@@ -193,7 +193,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                         const SizedBox(height: 22),
                         ElevatedButton(
                           onPressed: () => context.go('/home'),
-                          child: const Text('Continuar para o Vanty'),
+                          child: const Text('Continuar para o Plim'),
                         ),
                       ],
                     ],

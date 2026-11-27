@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../services/support_service.dart';
 import '../../widgets/delete_account_section.dart';
 
 class CompanyPendingPage extends StatefulWidget {
@@ -68,18 +67,6 @@ class _CompanyPendingPageState extends State<CompanyPendingPage> {
       appBar: AppBar(
         title: const Text('Cadastro em análise'),
         automaticallyImplyLeading: false,
-        actions: [
-          IconButton(
-            tooltip: 'Suporte ApoloApps',
-            onPressed: () => SupportService.openWhatsApp(context),
-            icon: const Icon(Icons.support_agent_rounded),
-          ),
-          IconButton(
-            tooltip: 'Sair',
-            onPressed: _logout,
-            icon: const Icon(Icons.logout),
-          ),
-        ],
       ),
       body: Center(
         child: SingleChildScrollView(

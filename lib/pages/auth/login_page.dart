@@ -26,7 +26,7 @@ class _LoginPageState extends State<LoginPage> {
   String? error;
 
   Future<void> _forgotPassword() async {
-    const message = 'Esqueci a minha senha do Vanty. Poderia me ajudar?';
+    const message = 'Esqueci a minha senha do Plim. Poderia me ajudar?';
     final number = AppConfig.supportWhatsappNumber.replaceAll(
       RegExp(r'\D'),
       '',
@@ -117,32 +117,15 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                     child: Column(
                       children: [
-                        Container(
-                          width: 68,
-                          height: 68,
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: .15),
-                            borderRadius: BorderRadius.circular(22),
-                          ),
-                          child: const Icon(
-                            Icons.loyalty_rounded,
-                            color: Colors.white,
-                            size: 36,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        const Text(
-                          'Vanty',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 32,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: -.8,
-                          ),
+                        Image.asset(
+                          'assets/images/plim_logo.png',
+                          width: 150,
+                          height: 150,
+                          fit: BoxFit.contain,
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          'Fidelidade que gera recompensas',
+                          'Descubra. Aproveite. Ganhe.',
                           style: TextStyle(
                             color: Colors.white.withValues(alpha: .88),
                             fontSize: 14,

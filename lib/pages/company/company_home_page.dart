@@ -1,22 +1,22 @@
 import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-
 import '../../core/theme/app_colors.dart';
 import '../../services/auth_service.dart';
 import '../../services/company_dashboard_service.dart';
+import '../../services/company_rating_service.dart';
 import '../../services/promotion_service.dart';
 import '../../services/support_service.dart';
 import '../../services/image_upload_service.dart';
 import '../../services/share_service.dart';
+import '../../widgets/company_rating_display.dart';
 import '../../widgets/help_tutorial_dialog.dart';
 import '../../widgets/company/company_bottom_navigation.dart';
+import '../../widgets/media_gallery_viewer.dart';
 
 class CompanyHomePage extends StatefulWidget {
   final bool showOnlyPromotions;
-
   const CompanyHomePage({super.key, this.showOnlyPromotions = false});
 
   @override
@@ -29,11 +29,9 @@ class _CompanyHomePageState extends State<CompanyHomePage> {
   // ============================================================
 
   final AuthService _authService = AuthService();
-
   final CompanyDashboardService _dashboardService = CompanyDashboardService();
-
   final PromotionService _promotionService = PromotionService();
-
+  final CompanyRatingService _ratingService = CompanyRatingService();
   final SupabaseClient _supabase = Supabase.instance.client;
 
   // ============================================================
@@ -43,21 +41,23 @@ class _CompanyHomePageState extends State<CompanyHomePage> {
   CompanyDashboardData? _companyData;
 
   // ============================================================
+  // AVALIAÇÃO
+  // ============================================================
+
+  double? _ratingAverage;
+  int _ratingCount = 0;
+
+  // ============================================================
   // BENEFÍCIOS
   // ============================================================
 
   String? _companyId;
-
   int _pendingStaticQrRequests = 0;
-
   Timer? _pendingQrRefreshTimer;
-
   List<Map<String, dynamic>> _promotions = [];
 
   bool _loading = true;
-
   bool _creating = false;
-
   String? _error;
 
   // ============================================================
@@ -67,7 +67,6 @@ class _CompanyHomePageState extends State<CompanyHomePage> {
   @override
   void initState() {
     super.initState();
-
     _loadData();
   }
 
@@ -121,6 +120,18 @@ class _CompanyHomePageState extends State<CompanyHomePage> {
       }
 
       // --------------------------------------------------------
+      // BUSCA AVALIAÇÃO DA EMPRESA
+      // --------------------------------------------------------
+
+      double? ratingAverage;
+      int ratingCount = 0;
+      try {
+        final rating = (await _ratingService.getStats([companyId]))[companyId];
+        ratingAverage = (rating?['average_rating'] as num?)?.toDouble();
+        ratingCount = (rating?['rating_count'] as num?)?.toInt() ?? 0;
+      } catch (_) {}
+
+      // --------------------------------------------------------
       // BUSCA BENEFÍCIOS
       // --------------------------------------------------------
 
@@ -142,17 +153,19 @@ class _CompanyHomePageState extends State<CompanyHomePage> {
 
       setState(() {
         _companyData = dashboardData;
-
         _companyId = companyId;
+        _ratingAverage = ratingAverage;
+        _ratingCount = ratingCount;
 
         // Recompensas sem pontos foram convertidas em ofertas pela migration.
         // Não as reapresentamos no gerenciador de fidelidade.
-        _promotions = promotions.where((item) => ((item['points_required'] as num?)?.toInt() ?? 0) > 0).toList();
-
+        _promotions = promotions
+            .where((item) => ((item['points_required'] as num?)?.toInt() ?? 0) > 0)
+            .toList();
         _pendingStaticQrRequests = pendingStaticQrRequests;
-
         _loading = false;
       });
+
       _pendingQrRefreshTimer?.cancel();
       _pendingQrRefreshTimer = Timer.periodic(const Duration(seconds: 20), (_) {
         _refreshPendingQrRequestCount(companyId);
@@ -162,7 +175,6 @@ class _CompanyHomePageState extends State<CompanyHomePage> {
 
       setState(() {
         _loading = false;
-
         _error = e.toString().replaceFirst('Exception: ', '');
       });
     }
@@ -175,11 +187,15 @@ class _CompanyHomePageState extends State<CompanyHomePage> {
           .select('id')
           .eq('company_id', companyId)
           .eq('status', 'pending');
+
       if (!mounted) return;
+
       final count = rows.length;
       final previous = _pendingStaticQrRequests;
+
       if (count != previous) {
         setState(() => _pendingStaticQrRequests = count);
+
         if (count > previous && mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Nova solicitação de pontos por QR Code permanente.')),
@@ -189,13 +205,11 @@ class _CompanyHomePageState extends State<CompanyHomePage> {
     } catch (_) {}
   }
 
-
   @override
   void dispose() {
     _pendingQrRefreshTimer?.cancel();
     super.dispose();
   }
-
 
   // ============================================================
   // LOGOUT
@@ -231,17 +245,14 @@ class _CompanyHomePageState extends State<CompanyHomePage> {
     final formKey = GlobalKey<FormState>();
 
     final titleController = TextEditingController();
-
     final descriptionController = TextEditingController();
-
     final pointsController = TextEditingController();
-
     final discountController = TextEditingController();
-
     final giftController = TextEditingController();
 
     String type = promotion?['type']?.toString() ?? 'discount';
     String? imageUrl = promotion?['image_url']?.toString();
+    final mediaUrls = List<String>.from(promotion?['media_urls'] is List ? promotion!['media_urls'] as List : (imageUrl == null ? [] : [imageUrl]));
     bool uploadingImage = false;
 
     titleController.text = promotion?['title']?.toString() ?? '';
@@ -256,6 +267,7 @@ class _CompanyHomePageState extends State<CompanyHomePage> {
           promotion?['starts_at']?.toString() ?? '',
         )?.toLocal() ??
         DateTime.now();
+
     DateTime? endsAt =
         DateTime.tryParse(promotion?['ends_at']?.toString() ?? '')?.toLocal() ??
         DateTime.now().add(const Duration(days: 30));
@@ -270,7 +282,6 @@ class _CompanyHomePageState extends State<CompanyHomePage> {
               title: Text(
                 promotion == null ? 'Nova recompensa' : 'Editar recompensa',
               ),
-
               content: SizedBox(
                 width: 500,
                 child: SingleChildScrollView(
@@ -282,6 +293,7 @@ class _CompanyHomePageState extends State<CompanyHomePage> {
                         // ==================================================
                         // TÍTULO
                         // ==================================================
+
                         TextFormField(
                           controller: titleController,
                           decoration: const InputDecoration(
@@ -293,7 +305,6 @@ class _CompanyHomePageState extends State<CompanyHomePage> {
                             if (value == null || value.trim().isEmpty) {
                               return 'Informe o título.';
                             }
-
                             return null;
                           },
                         ),
@@ -303,6 +314,7 @@ class _CompanyHomePageState extends State<CompanyHomePage> {
                         // ==================================================
                         // DESCRIÇÃO
                         // ==================================================
+
                         TextFormField(
                           controller: descriptionController,
                           maxLines: 3,
@@ -325,63 +337,33 @@ class _CompanyHomePageState extends State<CompanyHomePage> {
                               fit: BoxFit.cover,
                             ),
                           ),
+
                         OutlinedButton.icon(
-                          onPressed: uploadingImage
-                              ? null
-                              : () async {
-                                  setDialogState(() => uploadingImage = true);
-                                  try {
-                                    final uploaded = await ImageUploadService()
-                                        .pickAndUpload(
-                                          folder: 'promotions',
-                                          filePrefix: 'benefit',
-                                          cropContext: context,
-                                          cropAspectRatio: 16 / 9,
-                                        );
-                                    if (uploaded != null) {
-                                      setDialogState(() => imageUrl = uploaded);
-                                    }
-                                  } catch (e) {
-                                    if (context.mounted) {
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        SnackBar(
-                                          content: Text(
-                                            e.toString().replaceFirst(
-                                              'Exception: ',
-                                              '',
-                                            ),
-                                          ),
-                                        ),
-                                      );
-                                    }
-                                  } finally {
-                                    setDialogState(
-                                      () => uploadingImage = false,
-                                    );
-                                  }
-                                },
-                          icon: uploadingImage
-                              ? const SizedBox(
-                                  width: 16,
-                                  height: 16,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : const Icon(Icons.image_outlined),
-                          label: Text(
-                            uploadingImage
-                                ? 'Enviando imagem...'
-                                : 'Escolher imagem da recompensa',
-                          ),
+                          onPressed: uploadingImage || mediaUrls.length >= 5 ? null : () async {
+                            setDialogState(() => uploadingImage = true);
+                            try {
+                              final uploaded = await ImageUploadService().pickAndUploadMultiple(folder: 'promotions', filePrefix: 'benefit', maxCount: 5 - mediaUrls.length);
+                              if (uploaded.isNotEmpty) setDialogState(() { mediaUrls.addAll(uploaded); imageUrl = mediaUrls.first; });
+                            } catch (e) {
+                              if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))));
+                            } finally { setDialogState(() => uploadingImage = false); }
+                          },
+                          icon: uploadingImage ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.photo_library_outlined),
+                          label: Text(uploadingImage ? 'Enviando mídias...' : 'Adicionar mídias (${mediaUrls.length}/5)'),
                         ),
+                        if (mediaUrls.isNotEmpty) SizedBox(height: 76, child: ListView(scrollDirection: Axis.horizontal, children: [
+                          for (final url in mediaUrls) Padding(padding: const EdgeInsets.only(right: 8), child: Stack(children: [
+                            ClipRRect(borderRadius: BorderRadius.circular(8), child: Image.network(url, width: 68, height: 68, fit: BoxFit.cover, errorBuilder: (_, _, _) => const SizedBox(width: 68, height: 68, child: Icon(Icons.perm_media)))),
+                            Positioned(right: 0, top: 0, child: InkWell(onTap: () => setDialogState(() { mediaUrls.remove(url); imageUrl = mediaUrls.isEmpty ? null : mediaUrls.first; }), child: const CircleAvatar(radius: 11, child: Icon(Icons.close, size: 14)))),
+                          ])),
+                        ])),
+
                         const SizedBox(height: 12),
 
                         // ==================================================
                         // TIPO
                         // ==================================================
+
                         DropdownButtonFormField<String>(
                           initialValue: type,
                           decoration: const InputDecoration(
@@ -421,7 +403,7 @@ class _CompanyHomePageState extends State<CompanyHomePage> {
                           keyboardType: TextInputType.number,
                           decoration: InputDecoration(
                             labelText: 'Pontos necessários',
-                            helperText: 'Quantidade de pontos para resgatar a recompensa.', 
+                            helperText: 'Quantidade de pontos para resgatar a recompensa.',
                             border: const OutlineInputBorder(),
                           ),
                           validator: (value) {
@@ -433,12 +415,12 @@ class _CompanyHomePageState extends State<CompanyHomePage> {
                             return null;
                           },
                         ),
-
                         const SizedBox(height: 16),
 
                         // ==================================================
                         // DESCONTO
                         // ==================================================
+
                         if (type == 'discount')
                           TextFormField(
                             controller: discountController,
@@ -469,6 +451,7 @@ class _CompanyHomePageState extends State<CompanyHomePage> {
                         // ==================================================
                         // BRINDE
                         // ==================================================
+
                         if (type == 'gift')
                           TextFormField(
                             controller: giftController,
@@ -492,6 +475,7 @@ class _CompanyHomePageState extends State<CompanyHomePage> {
                         // ==================================================
                         // DATA INICIAL
                         // ==================================================
+
                         _buildDateField(
                           context: context,
                           label: 'Início da promoção',
@@ -508,6 +492,7 @@ class _CompanyHomePageState extends State<CompanyHomePage> {
                         // ==================================================
                         // DATA FINAL
                         // ==================================================
+
                         _buildDateField(
                           context: context,
                           label: 'Data de validade',
@@ -530,11 +515,11 @@ class _CompanyHomePageState extends State<CompanyHomePage> {
                   ),
                 ),
               ),
-
               actions: [
                 // ==================================================
                 // CANCELAR DIALOG
                 // ==================================================
+
                 TextButton(
                   onPressed: _creating
                       ? null
@@ -547,6 +532,7 @@ class _CompanyHomePageState extends State<CompanyHomePage> {
                 // ==================================================
                 // CRIAR
                 // ==================================================
+
                 ElevatedButton(
                   onPressed: _creating
                       ? null
@@ -567,7 +553,6 @@ class _CompanyHomePageState extends State<CompanyHomePage> {
                                 ),
                               ),
                             );
-
                             return;
                           }
 
@@ -599,6 +584,7 @@ class _CompanyHomePageState extends State<CompanyHomePage> {
                                 descriptionController.text.trim().isEmpty
                                 ? null
                                 : descriptionController.text.trim();
+
                             final giftDescription = type == 'gift'
                                 ? giftController.text.trim()
                                 : null;
@@ -615,6 +601,7 @@ class _CompanyHomePageState extends State<CompanyHomePage> {
                                 startsAt: startsAt!,
                                 endsAt: endsAt!,
                                 imageUrl: imageUrl,
+                                mediaUrls: mediaUrls,
                               );
                             } else {
                               await _promotionService.updatePromotion(
@@ -629,6 +616,7 @@ class _CompanyHomePageState extends State<CompanyHomePage> {
                                 startsAt: startsAt!,
                                 endsAt: endsAt!,
                                 imageUrl: imageUrl,
+                                mediaUrls: mediaUrls,
                               );
                             }
 
@@ -793,6 +781,59 @@ class _CompanyHomePageState extends State<CompanyHomePage> {
   }
 
   // ============================================================
+  // REATIVAR BENEFÍCIO
+  // ============================================================
+
+  Future<void> _reactivatePromotion(Map<String, dynamic> promotion) async {
+    final id = promotion['id']?.toString();
+    final companyId = _companyId;
+
+    if (id == null || id.isEmpty || companyId == null || companyId.isEmpty) {
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Reativar recompensa?'),
+        content: Text(
+          'A recompensa "${promotion['title']}" voltará a ficar disponível para os clientes, respeitando os pontos e o período de validade configurados.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Voltar'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Reativar recompensa'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      await _promotionService.activatePromotion(
+        promotionId: id,
+        companyId: companyId,
+      );
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Recompensa reativada com sucesso.')),
+      );
+      await _loadData();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+      );
+    }
+  }
+
+  // ============================================================
   // EXCLUIR BENEFÍCIO
   // ============================================================
 
@@ -868,18 +909,25 @@ class _CompanyHomePageState extends State<CompanyHomePage> {
       // ========================================================
       // APP BAR
       // ========================================================
-      appBar: AppBar(
+
+      appBar: widget.showOnlyPromotions ? null : AppBar(
         elevation: 0,
-
         scrolledUnderElevation: 0,
-
         backgroundColor: AppColors.background,
-
         titleSpacing: 20,
 
         title: Row(
           children: [
-            _CompanyAvatar(logoUrl: _companyData?.companyLogoUrl, size: 42),
+            GestureDetector(
+              onTap: (_companyData?.companyLogoUrl?.isNotEmpty ?? false)
+                  ? () => showFullscreenMediaGallery(
+                        context,
+                        urls: [_companyData!.companyLogoUrl!],
+                        title: _companyData?.companyName ?? 'Foto da empresa',
+                      )
+                  : null,
+              child: _CompanyAvatar(logoUrl: _companyData?.companyLogoUrl, size: 42),
+            ),
 
             const SizedBox(width: 12),
 
@@ -918,7 +966,7 @@ class _CompanyHomePageState extends State<CompanyHomePage> {
 
         actions: [
           IconButton(
-            tooltip: 'Compartilhar Vanty',
+            tooltip: 'Compartilhar Plim',
             onPressed: () => ShareService.shareCompanyClub(
               companyName: _companyData?.companyName ?? 'nossa empresa',
               companyLogoUrl: _companyData?.companyLogoUrl,
@@ -926,16 +974,19 @@ class _CompanyHomePageState extends State<CompanyHomePage> {
             ),
             icon: const Icon(Icons.share_rounded),
           ),
+
           IconButton(
             tooltip: 'Suporte ApoloApps',
             onPressed: () => SupportService.openWhatsApp(context),
             icon: const Icon(Icons.support_agent_rounded),
           ),
+
           IconButton(
             tooltip: 'Ajuda',
             onPressed: () => HelpTutorialDialog.show(context, isCompany: true),
             icon: const Icon(Icons.help_outline_rounded),
           ),
+
           IconButton(
             tooltip: 'Atualizar',
             onPressed: _loading ? null : _loadData,
@@ -955,6 +1006,7 @@ class _CompanyHomePageState extends State<CompanyHomePage> {
       // ========================================================
       // BOTÃO NOVO BENEFÍCIO
       // ========================================================
+
       floatingActionButton: !widget.showOnlyPromotions || _companyId == null || _loading
           ? null
           : FloatingActionButton.extended(
@@ -969,6 +1021,7 @@ class _CompanyHomePageState extends State<CompanyHomePage> {
       // ========================================================
       // BODY
       // ========================================================
+
       body: _buildBody(),
     );
   }
@@ -999,26 +1052,28 @@ class _CompanyHomePageState extends State<CompanyHomePage> {
 
     return RefreshIndicator(
       onRefresh: _loadData,
-
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
-
         padding: const EdgeInsets.fromLTRB(20, 10, 20, 120),
-
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-
           children: [
             // ==================================================
             // CARD DA EMPRESA
             // ==================================================
-            _WelcomeCard(company: _companyData!),
+
+            _WelcomeCard(
+              company: _companyData!,
+              ratingAverage: _ratingAverage,
+              ratingCount: _ratingCount,
+            ),
 
             const SizedBox(height: 28),
 
             // ==================================================
             // OPERAÇÕES COM QR CODE
             // ==================================================
+
             const _SectionTitle(
               title: 'Com QR Code',
               subtitle: 'Operações rápidas usando a câmera',
@@ -1065,6 +1120,7 @@ class _CompanyHomePageState extends State<CompanyHomePage> {
             // ==================================================
             // OPERAÇÕES MANUAIS
             // ==================================================
+
             const _SectionTitle(
               title: 'Operações manuais',
               subtitle: 'Faça as operações sem precisar escanear',
@@ -1085,7 +1141,9 @@ class _CompanyHomePageState extends State<CompanyHomePage> {
                     },
                   ),
                 ),
+
                 const SizedBox(width: 12),
+
                 Expanded(
                   child: _ActionCard(
                     icon: Icons.fact_check_outlined,
@@ -1102,6 +1160,7 @@ class _CompanyHomePageState extends State<CompanyHomePage> {
             const SizedBox(height: 26),
 
             const SizedBox(height: 20),
+
             Card(
               child: ListTile(
                 leading: const Icon(Icons.dashboard_outlined),
@@ -1160,7 +1219,9 @@ class _CompanyHomePageState extends State<CompanyHomePage> {
                 ),
               ],
             ),
+
             const SizedBox(height: 16),
+
             if (_promotions.isEmpty)
               _buildEmpty()
             else
@@ -1180,14 +1241,11 @@ class _CompanyHomePageState extends State<CompanyHomePage> {
 
     return Container(
       width: double.infinity,
-
       padding: const EdgeInsets.all(28),
-
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(20),
       ),
-
       child: Column(
         children: [
           Icon(
@@ -1223,40 +1281,26 @@ class _CompanyHomePageState extends State<CompanyHomePage> {
     );
   }
 
-
   // ============================================================
   // CARD BENEFÍCIO
   // ============================================================
 
   Widget _buildPromotionCard(Map<String, dynamic> promotion) {
     final colorScheme = Theme.of(context).colorScheme;
-
     final title = promotion['title'] ?? 'Recompensa';
-
     final description = promotion['description'];
-
     final type = promotion['type'];
-
     final points = promotion['points_required'] ?? 0;
-
     final discount = promotion['discount_percentage'];
-
     final gift = promotion['gift_description'];
-
     final active = promotion['active'] ?? true;
-
     final startsAt = _parseDate(promotion['starts_at']);
-
     final endsAt = _parseDate(promotion['ends_at']);
-
     final now = DateTime.now();
-
     final expired = endsAt != null && now.isAfter(endsAt);
-
     final notStarted = startsAt != null && now.isBefore(startsAt);
 
     String status;
-
     if (!active) {
       status = 'Cancelado';
     } else if (expired) {
@@ -1268,25 +1312,20 @@ class _CompanyHomePageState extends State<CompanyHomePage> {
     }
 
     Color statusColor;
-
     IconData statusIcon;
-
     switch (status) {
       case 'Cancelado':
         statusColor = Colors.red;
         statusIcon = Icons.cancel;
         break;
-
       case 'Expirado':
         statusColor = Colors.orange;
         statusIcon = Icons.timer_off;
         break;
-
       case 'Agendado':
         statusColor = Colors.blue;
         statusIcon = Icons.schedule;
         break;
-
       default:
         statusColor = Colors.green;
         statusIcon = Icons.check_circle;
@@ -1306,53 +1345,28 @@ class _CompanyHomePageState extends State<CompanyHomePage> {
       rewardText = 'Recompensa';
     }
 
+    final rawMedia = promotion['media_urls'];
+    final mediaUrls = rawMedia is List
+        ? rawMedia.map((value) => value.toString()).where((value) => value.trim().isNotEmpty).toList()
+        : <String>[];
+    final primaryImage = promotion['image_url']?.toString() ?? '';
+    if (mediaUrls.isEmpty && primaryImage.isNotEmpty) mediaUrls.add(primaryImage);
+    if (mediaUrls.isNotEmpty && primaryImage.isNotEmpty && !mediaUrls.contains(primaryImage)) mediaUrls.insert(0, primaryImage);
+
     return Container(
-      margin: const EdgeInsets.only(bottom: 14),
-
-      padding: const EdgeInsets.all(18),
-
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(18),
       ),
-
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-
         children: [
-          if ((promotion['image_url'] ?? '').toString().isNotEmpty) ...[
-            ClipRRect(
-              borderRadius: BorderRadius.circular(14),
-              child: Image.network(
-                promotion['image_url'].toString(),
-                height: 120,
-                width: double.infinity,
-                fit: BoxFit.cover,
-                errorBuilder: (_, _, _) => const SizedBox.shrink(),
-              ),
-            ),
-            const SizedBox(height: 12),
-          ],
-
-          // ==================================================
-          // TÍTULO + STATUS
-          // ==================================================
+          // Compartilhamento e status ficam na primeira linha.
           Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-
+            mainAxisAlignment: MainAxisAlignment.end,
             children: [
-              Expanded(
-                child: Text(
-                  title.toString(),
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-
-              const SizedBox(width: 8),
-
               IconButton(
                 tooltip: 'Compartilhar recompensa',
                 visualDensity: VisualDensity.compact,
@@ -1368,19 +1382,69 @@ class _CompanyHomePageState extends State<CompanyHomePage> {
                 ),
                 icon: const Icon(Icons.share_outlined),
               ),
+              const SizedBox(width: 4),
               _buildStatusChip(status, statusColor, statusIcon),
             ],
           ),
+          const SizedBox(height: 6),
 
-          const SizedBox(height: 12),
+          // Imagem clicável ao lado do título, abaixo do status e compartilhar.
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              if (mediaUrls.isNotEmpty) ...[
+                InkWell(
+                  borderRadius: BorderRadius.circular(12),
+                  onTap: () => showFullscreenMediaGallery(
+                    context,
+                    urls: mediaUrls,
+                    title: title.toString(),
+                    description: description?.toString(),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Stack(alignment: Alignment.bottomRight, children: [
+                      Image.network(
+                        mediaUrls.first,
+                        width: 76,
+                        height: 76,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, _, _) => Container(
+                          width: 76, height: 76,
+                          color: colorScheme.surface,
+                          child: const Icon(Icons.image_not_supported_outlined),
+                        ),
+                      ),
+                      if (mediaUrls.length > 1)
+                        Container(
+                          margin: const EdgeInsets.all(5),
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                          decoration: BoxDecoration(color: Colors.black87, borderRadius: BorderRadius.circular(12)),
+                          child: Text('${mediaUrls.length} mídias', style: const TextStyle(color: Colors.white, fontSize: 10)),
+                        ),
+                    ]),
+                  ),
+                ),
+                const SizedBox(width: 12),
+              ],
+              Expanded(
+                child: Text(
+                  title.toString(),
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
 
           // ==================================================
           // RECOMPENSA
           // ==================================================
+
           Text(
             rewardText,
             style: TextStyle(
-              fontSize: 19,
+              fontSize: 16,
               fontWeight: FontWeight.bold,
               color: colorScheme.primary,
             ),
@@ -1391,15 +1455,14 @@ class _CompanyHomePageState extends State<CompanyHomePage> {
           // ==================================================
           // PONTOS
           // ==================================================
+
           Row(
             children: [
               Icon(Icons.stars_outlined, size: 19, color: colorScheme.primary),
-
               const SizedBox(width: 6),
-
               Text(
                 '$points pontos necessários',
-                style: const TextStyle(fontWeight: FontWeight.w600),
+                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
               ),
             ],
           ),
@@ -1407,28 +1470,27 @@ class _CompanyHomePageState extends State<CompanyHomePage> {
           // ==================================================
           // DESCRIÇÃO
           // ==================================================
+
           if (description != null && description.toString().isNotEmpty) ...[
             const SizedBox(height: 10),
-
             Text(
               description.toString(),
-              style: TextStyle(color: colorScheme.onSurfaceVariant),
+              style: TextStyle(fontSize: 12, color: colorScheme.onSurfaceVariant),
             ),
           ],
 
-          const Divider(height: 26),
+          const Divider(height: 18),
 
           // ==================================================
           // INÍCIO
           // ==================================================
+
           if (startsAt != null)
             Row(
               children: [
                 const Icon(Icons.play_circle_outline, size: 18),
-
                 const SizedBox(width: 7),
-
-                Text('Início: ${_formatDate(startsAt)}'),
+                Text('Início: ${_formatDate(startsAt)}', style: const TextStyle(fontSize: 12)),
               ],
             ),
 
@@ -1437,6 +1499,7 @@ class _CompanyHomePageState extends State<CompanyHomePage> {
           // ==================================================
           // VALIDADE
           // ==================================================
+
           if (endsAt != null)
             Row(
               children: [
@@ -1445,13 +1508,12 @@ class _CompanyHomePageState extends State<CompanyHomePage> {
                   size: 18,
                   color: expired ? Colors.orange : null,
                 ),
-
                 const SizedBox(width: 7),
-
                 Text(
                   'Validade: ${_formatDate(endsAt)}',
                   style: TextStyle(
                     color: expired ? Colors.orange : null,
+                    fontSize: 12,
                     fontWeight: expired ? FontWeight.bold : null,
                   ),
                 ),
@@ -1463,6 +1525,7 @@ class _CompanyHomePageState extends State<CompanyHomePage> {
           // ==================================================
           // EDITAR RECOMPENSA
           // ==================================================
+
           SizedBox(
             width: double.infinity,
             child: OutlinedButton.icon(
@@ -1471,11 +1534,13 @@ class _CompanyHomePageState extends State<CompanyHomePage> {
               label: const Text('Editar recompensa'),
             ),
           ),
+
           const SizedBox(height: 10),
 
           // ==================================================
           // AÇÕES
           // ==================================================
+
           if (active && !expired) ...[
             Row(
               children: [
@@ -1502,16 +1567,43 @@ class _CompanyHomePageState extends State<CompanyHomePage> {
               ],
             ),
           ] else ...[
-            SizedBox(
-              width: double.infinity,
-
-              child: OutlinedButton.icon(
-                style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
-                onPressed: () => _deletePromotion(promotion),
-                icon: const Icon(Icons.delete_outline),
-                label: const Text('Excluir'),
+            if (!active) ...[
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.green,
+                      ),
+                      onPressed: () => _reactivatePromotion(promotion),
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Reativar'),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.red,
+                      ),
+                      onPressed: () => _deletePromotion(promotion),
+                      icon: const Icon(Icons.delete_outline),
+                      label: const Text('Excluir'),
+                    ),
+                  ),
+                ],
               ),
-            ),
+            ] else ...[
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
+                  onPressed: () => _deletePromotion(promotion),
+                  icon: const Icon(Icons.delete_outline),
+                  label: const Text('Excluir'),
+                ),
+              ),
+            ],
           ],
         ],
       ),
@@ -1525,20 +1617,15 @@ class _CompanyHomePageState extends State<CompanyHomePage> {
   Widget _buildStatusChip(String status, Color color, IconData icon) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
-
       decoration: BoxDecoration(
         color: color.withValues(alpha: .10),
         borderRadius: BorderRadius.circular(20),
       ),
-
       child: Row(
         mainAxisSize: MainAxisSize.min,
-
         children: [
           Icon(icon, size: 15, color: color),
-
           const SizedBox(width: 5),
-
           Text(
             status,
             style: TextStyle(
@@ -1566,13 +1653,9 @@ class _CompanyHomePageState extends State<CompanyHomePage> {
 
   String _formatDate(DateTime date) {
     final local = date.toLocal();
-
     final day = local.day.toString().padLeft(2, '0');
-
     final month = local.month.toString().padLeft(2, '0');
-
     final year = local.year.toString();
-
     return '$day/$month/$year';
   }
 }
@@ -1581,10 +1664,20 @@ class _CompanyHomePageState extends State<CompanyHomePage> {
 // WELCOME CARD
 // ═══════════════════════════════════════════════════════════
 
+// ═══════════════════════════════════════════════════════════
+// WELCOME CARD
+// ═══════════════════════════════════════════════════════════
+
 class _WelcomeCard extends StatelessWidget {
   final CompanyDashboardData company;
+  final double? ratingAverage;
+  final int ratingCount;
 
-  const _WelcomeCard({required this.company});
+  const _WelcomeCard({
+    required this.company,
+    this.ratingAverage,
+    this.ratingCount = 0,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1592,9 +1685,7 @@ class _WelcomeCard extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-
       padding: const EdgeInsets.all(22),
-
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
@@ -1613,15 +1704,32 @@ class _WelcomeCard extends StatelessWidget {
           ),
         ],
       ),
-
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-
         children: [
-          _CompanyAvatar(
-            logoUrl: company.companyLogoUrl,
-            size: 58,
-            backgroundColor: Colors.white.withValues(alpha: .15),
+          // ==================================================
+          // LOGO + AVALIAÇÃO
+          // ==================================================
+
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              _CompanyAvatar(
+                logoUrl: company.companyLogoUrl,
+                size: 58,
+                backgroundColor: Colors.white.withValues(alpha: .15),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: _RatingBadge(
+                    average: ratingAverage,
+                    count: ratingCount,
+                  ),
+                ),
+              ),
+            ],
           ),
 
           const SizedBox(height: 18),
@@ -1647,7 +1755,6 @@ class _WelcomeCard extends StatelessWidget {
           if (company.companyDescription != null &&
               company.companyDescription!.isNotEmpty) ...[
             const SizedBox(height: 6),
-
             Text(
               company.companyDescription!,
               maxLines: 2,
@@ -1664,12 +1771,10 @@ class _WelcomeCard extends StatelessWidget {
 
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-
             decoration: BoxDecoration(
               color: Colors.white.withValues(alpha: .13),
               borderRadius: BorderRadius.circular(30),
             ),
-
             child: const Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -1684,6 +1789,78 @@ class _WelcomeCard extends StatelessWidget {
                   ),
                 ),
               ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// RATING BADGE (avaliação em branco sobre o card verde)
+// ═══════════════════════════════════════════════════════════
+
+class _RatingBadge extends StatelessWidget {
+  final double? average;
+  final int count;
+
+  const _RatingBadge({required this.average, required this.count});
+
+  @override
+  Widget build(BuildContext context) {
+    final hasRating = average != null && count > 0;
+    final filledStars = hasRating ? average!.round().clamp(0, 5) : 0;
+    final valueText = hasRating
+        ? average!.toStringAsFixed(1).replaceAll('.', ',')
+        : '--';
+    final countText = count == 0
+        ? 'Sem avaliações ainda'
+        : count == 1
+            ? '1 avaliação'
+            : '$count avaliações';
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: .20),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.white.withValues(alpha: .35)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Text(
+            valueText,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 30,
+              fontWeight: FontWeight.w800,
+              height: 1.0,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: List.generate(
+              5,
+              (index) => Icon(
+                index < filledStars
+                    ? Icons.star_rounded
+                    : Icons.star_outline_rounded,
+                color: Colors.white,
+                size: 22,
+              ),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            countText,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
             ),
           ),
         ],
@@ -1708,34 +1885,27 @@ class _ScanBenefitCard extends StatelessWidget {
     return Material(
       color: colorScheme.primary,
       borderRadius: BorderRadius.circular(22),
-
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(22),
-
         child: Padding(
           padding: const EdgeInsets.all(20),
-
           child: Row(
             children: [
               Container(
                 width: 58,
                 height: 58,
-
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: .15),
                   borderRadius: BorderRadius.circular(17),
                 ),
-
                 child: const Icon(
                   Icons.qr_code_scanner_rounded,
                   color: Colors.white,
                   size: 30,
                 ),
               ),
-
               const SizedBox(width: 16),
-
               const Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1760,7 +1930,6 @@ class _ScanBenefitCard extends StatelessWidget {
                   ],
                 ),
               ),
-
               const Icon(
                 Icons.arrow_forward_ios_rounded,
                 color: Colors.white,
@@ -1806,25 +1975,19 @@ class _ActionCard extends StatelessWidget {
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.all(18),
-
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-
             children: [
               Container(
                 width: 48,
                 height: 48,
-
                 decoration: BoxDecoration(
                   color: AppColors.primaryLight,
                   borderRadius: BorderRadius.circular(14),
                 ),
-
                 child: Icon(icon, color: colorScheme.primary, size: 25),
               ),
-
               const SizedBox(height: 16),
-
               Text(
                 title,
                 style: const TextStyle(
@@ -1832,9 +1995,7 @@ class _ActionCard extends StatelessWidget {
                   fontWeight: FontWeight.bold,
                 ),
               ),
-
               const SizedBox(height: 4),
-
               Row(
                 children: [
                   Expanded(
@@ -1862,10 +2023,6 @@ class _ActionCard extends StatelessWidget {
 }
 
 // ═══════════════════════════════════════════════════════════
-// STATISTIC CARD
-// ═══════════════════════════════════════════════════════════
-
-// ═══════════════════════════════════════════════════════════
 // COMPANY AVATAR
 // ═══════════════════════════════════════════════════════════
 
@@ -1883,20 +2040,17 @@ class _CompanyAvatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-
     final background =
         backgroundColor ?? colorScheme.primary.withValues(alpha: .12);
 
     if (logoUrl != null && logoUrl!.isNotEmpty) {
       return ClipRRect(
         borderRadius: BorderRadius.circular(size * .28),
-
         child: Image.network(
           logoUrl!,
           width: size,
           height: size,
           fit: BoxFit.cover,
-
           errorBuilder: (_, _, _) {
             return _fallback(background, colorScheme);
           },
@@ -1911,12 +2065,10 @@ class _CompanyAvatar extends StatelessWidget {
     return Container(
       width: size,
       height: size,
-
       decoration: BoxDecoration(
         color: background,
         borderRadius: BorderRadius.circular(size * .28),
       ),
-
       child: Icon(
         Icons.storefront_rounded,
         size: size * .5,
@@ -1942,15 +2094,12 @@ class _SectionTitle extends StatelessWidget {
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-
       children: [
         Text(
           title,
           style: const TextStyle(fontSize: 19, fontWeight: FontWeight.bold),
         ),
-
         const SizedBox(height: 3),
-
         Text(
           subtitle,
           style: TextStyle(fontSize: 12, color: colorScheme.onSurfaceVariant),
@@ -1975,31 +2124,23 @@ class _ErrorView extends StatelessWidget {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(30),
-
         child: Column(
           mainAxisSize: MainAxisSize.min,
-
           children: [
             const Icon(Icons.error_outline_rounded, size: 56),
-
             const SizedBox(height: 16),
-
             const Text(
               'Não foi possível carregar os dados',
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
-
             const SizedBox(height: 8),
-
             Text(
               message,
               textAlign: TextAlign.center,
               style: const TextStyle(fontSize: 13),
             ),
-
             const SizedBox(height: 20),
-
             ElevatedButton.icon(
               onPressed: onRetry,
               icon: const Icon(Icons.refresh_rounded),

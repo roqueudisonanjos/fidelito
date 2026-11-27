@@ -12,7 +12,7 @@ class QrPrintService {
     String? companyLogoUrl,
   }) async {
     final pdf = pw.Document();
-    final brandBytes = (await rootBundle.load('assets/images/vanty_logo.png'))
+    final brandBytes = (await rootBundle.load('assets/images/plim_logo.png'))
         .buffer
         .asUint8List();
     final brandImage = pw.MemoryImage(brandBytes);
@@ -46,7 +46,7 @@ class QrPrintService {
                 children: [
                   pw.Image(brandImage, width: 38, height: 38),
                   pw.SizedBox(width: 8),
-                  pw.Text('Vanty', style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#176B45'))),
+                  pw.Text('Plim', style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#176B45'))),
                 ],
               ),
               pw.Column(
@@ -82,7 +82,7 @@ class QrPrintService {
                 child: pw.Text('$points PONTOS', style: pw.TextStyle(fontSize: 20, color: PdfColors.white, fontWeight: pw.FontWeight.bold)),
               ),
               pw.Text('Aponte a câmera e acumule pontos no seu programa de fidelidade.', textAlign: pw.TextAlign.center, style: pw.TextStyle(fontSize: 10, color: PdfColor.fromHex('#555555'))),
-              pw.Text('Powered by Vanty', style: pw.TextStyle(fontSize: 9, color: PdfColor.fromHex('#777777'))),
+              pw.Text('Powered by Plim', style: pw.TextStyle(fontSize: 9, color: PdfColor.fromHex('#777777'))),
             ],
           ),
         ),
@@ -90,7 +90,7 @@ class QrPrintService {
     );
 
     await Printing.layoutPdf(
-      name: 'QR Vanty - $companyName',
+      name: 'QR Plim - $companyName',
       onLayout: (_) async => Uint8List.fromList(await pdf.save()),
     );
   }

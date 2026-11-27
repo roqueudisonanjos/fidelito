@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import '../../widgets/company_rating_display.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../services/company_offer_service.dart';
 import '../../services/share_service.dart';
+import '../../services/publication_view_service.dart';
+import '../../widgets/media_gallery_viewer.dart';
 
 class SharedOfferDetailsPage extends StatefulWidget {
   const SharedOfferDetailsPage({super.key, required this.offerId});
@@ -15,6 +18,7 @@ class SharedOfferDetailsPage extends StatefulWidget {
 
 class _SharedOfferDetailsPageState extends State<SharedOfferDetailsPage> {
   final _service = CompanyOfferService();
+  final _publicationViewService = PublicationViewService();
   Map<String, dynamic>? _offer;
   bool _loading = true;
   String? _error;
@@ -32,8 +36,13 @@ class _SharedOfferDetailsPageState extends State<SharedOfferDetailsPage> {
       final offers = await _service.getPublicOffers();
       final matches = offers.where((item) => item['id']?.toString() == widget.offerId);
       if (!mounted) return;
+      final found = matches.isEmpty ? null : matches.first;
+      if (found != null) {
+        await _publicationViewService.recordView(type: 'offer', id: widget.offerId);
+      }
+      if (!mounted) return;
       setState(() {
-        _offer = matches.isEmpty ? null : matches.first;
+        _offer = found;
         _loading = false;
         if (_offer == null) _error = 'Esta oferta não está mais ativa ou disponível.';
       });
@@ -58,13 +67,17 @@ class _SharedOfferDetailsPageState extends State<SharedOfferDetailsPage> {
   Widget build(BuildContext context) {
     final offer = _offer;
     final company = offer == null ? <String, dynamic>{} : Map<String, dynamic>.from(offer['companies'] ?? {});
+    final offerData = offer ?? <String, dynamic>{};
+    final offerMedia = offerData['media_urls'] is List
+        ? List<String>.from(offerData['media_urls'] as List)
+        : <String>[if ((offerData['image_url']?.toString() ?? '').trim().isNotEmpty) offerData['image_url'].toString()];
     final companyName = company['name']?.toString() ?? 'Empresa';
     return Scaffold(
       appBar: AppBar(
         title: const Text('Detalhes da oferta'),
         actions: [
           IconButton(
-            tooltip: 'Ir para Home do Vanty',
+            tooltip: 'Ir para Home do Plim',
             icon: const Icon(Icons.home_outlined),
             onPressed: () => context.go('/home'),
           ),
@@ -77,8 +90,17 @@ class _SharedOfferDetailsPageState extends State<SharedOfferDetailsPage> {
               : SingleChildScrollView(
                   padding: const EdgeInsets.all(16),
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    if ((offer?['image_url']?.toString() ?? '').trim().isNotEmpty)
-                      ClipRRect(borderRadius: BorderRadius.circular(16), child: Image.network(offer!['image_url'].toString(), width: double.infinity, fit: BoxFit.cover, errorBuilder: (_, _, _) => const SizedBox.shrink())),
+                    if ((offerData['image_url']?.toString() ?? '').trim().isNotEmpty)
+                      GestureDetector(
+                        onTap: () {
+                          showFullscreenMediaGallery(context, urls: offerMedia, description: offerData['description']?.toString());
+                        },
+                        child: Stack(children: [
+                          ClipRRect(borderRadius: BorderRadius.circular(16), child: Image.network(offerData['image_url'].toString(), width: double.infinity, fit: BoxFit.cover, errorBuilder: (_, _, _) => const SizedBox.shrink())),
+                          if (offerMedia.length > 1)
+                            Positioned(right: 10, bottom: 10, child: Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), decoration: BoxDecoration(color: Colors.black87, borderRadius: BorderRadius.circular(20)), child: Row(mainAxisSize: MainAxisSize.min, children: [const Icon(Icons.collections, color: Colors.white, size: 16), const SizedBox(width: 5), Text('${offerMedia.length} mídias', style: const TextStyle(color: Colors.white, fontSize: 12))]))),
+                        ]),
+                      ),
                     const SizedBox(height: 16),
                     Text(offer?['title']?.toString() ?? 'Oferta', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
                     const SizedBox(height: 8),
@@ -92,9 +114,12 @@ class _SharedOfferDetailsPageState extends State<SharedOfferDetailsPage> {
                     ]))),
                     const SizedBox(height: 16),
                     Card(child: ListTile(
-                      leading: (company['logo_url']?.toString() ?? '').trim().isNotEmpty
-                          ? CircleAvatar(backgroundImage: NetworkImage(company['logo_url'].toString()))
-                          : const CircleAvatar(child: Icon(Icons.store_outlined)),
+                      leading: Column(mainAxisSize: MainAxisSize.min, children: [
+                        (company['logo_url']?.toString() ?? '').trim().isNotEmpty
+                            ? CircleAvatar(backgroundImage: NetworkImage(company['logo_url'].toString()))
+                            : const CircleAvatar(child: Icon(Icons.store_outlined)),
+                        CompanyRatingLookup(companyId: company['id'].toString(), compact: true),
+                      ]),
                       title: Text(companyName, style: const TextStyle(fontWeight: FontWeight.bold)),
                       subtitle: Text([company['city'], company['state']].where((v) => v != null && v.toString().trim().isNotEmpty).join(' - ')),
                       trailing: const Icon(Icons.chevron_right),

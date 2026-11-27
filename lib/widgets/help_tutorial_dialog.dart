@@ -76,7 +76,7 @@ class HelpTutorialDialog {
             const SizedBox(width: 10),
             Expanded(
               child: Text(
-                isCompany ? 'Como usar o Vanty' : 'Como funciona o Vanty',
+                isCompany ? 'Como usar o Plim' : 'Como funciona o Plim',
               ),
             ),
           ],

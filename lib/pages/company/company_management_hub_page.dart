@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../widgets/company/company_app_bar_actions.dart';
 import 'package:go_router/go_router.dart';
 import '../../widgets/company/company_bottom_navigation.dart';
 
@@ -10,10 +9,6 @@ class CompanyManagementHubPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Gestão'),
-        actions: const [CompanyAppBarActions()],
-      ),
       bottomNavigationBar: const CompanyBottomNavigation(selectedIndex: 1),
       body: ListView(
         padding: const EdgeInsets.all(16),

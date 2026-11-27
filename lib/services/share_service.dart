@@ -5,25 +5,25 @@ import 'package:share_plus/share_plus.dart';
 class ShareService {
   ShareService._();
 
-  static const String appUrl = 'https://vanty.web.app';
-  static const String _logoAsset = 'assets/images/vanty_logo.png';
+  static const String appUrl = 'https://plim.web.app';
+  static const String _logoAsset = 'assets/images/plim_logo.png';
 
   static Future<void> shareApp() async {
     const message =
-        '✨ Conheça o Vanty! Descubra empresas, acumule pontos e troque por '
+        '✨ Conheça o Plim! Descubra empresas, acumule pontos e troque por '
         'recompensas especiais. Compartilhe essa novidade com seus amigos!\n\n'
         'Acesse: $appUrl';
 
     final logo = await _loadBrandLogo();
     await _shareWithImage(
       text: message,
-      subject: 'Conheça o Vanty',
+      subject: 'Conheça o Plim',
       image: logo,
     );
   }
 
   /// Compartilhamento do clube de fidelidade pela própria empresa.
-  /// Usa a foto/logo da empresa e recorre à marca do Vanty quando ausente.
+  /// Usa a foto/logo da empresa e recorre à marca do Plim quando ausente.
   static Future<void> shareCompanyClub({
     required String companyName,
     String? companyLogoUrl,
@@ -36,7 +36,7 @@ class ShareService {
     final message =
         '💚 Entre no clube de fidelidade de $name e tenha acesso a ofertas '
         'exclusivas, benefícios especiais e recompensas!\n\n'
-        'Faça parte do nosso clube pelo Vanty: $companyLink';
+        'Faça parte do nosso clube pelo Plim: $companyLink';
 
     final image = await _loadCompanyLogo(companyLogoUrl) ??
         await _loadBrandLogo();
@@ -65,7 +65,7 @@ class ShareService {
         : (companyId?.trim().isNotEmpty == true
             ? '$appUrl/#/empresa/${companyId!.trim()}$offerQuery'
             : appUrl);
-    final message = '📣 Oferta de $companyName!\n\n$title$extra\n\nConfira no Vanty: $companyLink';
+    final message = '📣 Oferta de $companyName!\n\n$title$extra\n\nConfira no Plim: $companyLink';
     final image = await _loadCompanyLogo(companyLogoUrl) ?? await _loadBrandLogo();
     await _shareWithImage(text: message, subject: 'Oferta de $companyName', image: image);
   }
@@ -99,7 +99,7 @@ class ShareService {
     final message =
         '🎁 Aproveite esta recompensa oferecida por $companyName!\n\n'
         '$title\n$benefit$extraDescription\n\n'
-        'Veja essa e outras oportunidades no Vanty: $companyLink';
+        'Veja essa e outras oportunidades no Plim: $companyLink';
 
     final image = await _loadCompanyLogo(companyLogoUrl) ??
         await _loadBrandLogo();
@@ -116,7 +116,7 @@ class ShareService {
     return _ShareImage(
       bytes: data.buffer.asUint8List(),
       mimeType: 'image/png',
-      fileName: 'vanty.png',
+      fileName: 'plim.png',
     );
   }
 

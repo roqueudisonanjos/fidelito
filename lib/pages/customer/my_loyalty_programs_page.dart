@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../widgets/company_rating_display.dart';
 import 'package:go_router/go_router.dart';
 import '../../services/loyalty_program_service.dart';
 
@@ -88,15 +89,13 @@ class _MyLoyaltyProgramsPageState extends State<MyLoyaltyProgramsPage> {
                   margin: const EdgeInsets.only(bottom: 12),
                   child: ListTile(
                     contentPadding: const EdgeInsets.all(16),
-                    leading: CircleAvatar(
-                      backgroundImage:
-                          (company['logo_url'] ?? '').toString().isNotEmpty
-                          ? NetworkImage(company['logo_url'].toString())
-                          : null,
-                      child: (company['logo_url'] ?? '').toString().isNotEmpty
-                          ? null
-                          : const Icon(Icons.storefront_outlined),
-                    ),
+                    leading: Column(mainAxisSize: MainAxisSize.min, children: [
+                      CircleAvatar(
+                        backgroundImage: (company['logo_url'] ?? '').toString().isNotEmpty ? NetworkImage(company['logo_url'].toString()) : null,
+                        child: (company['logo_url'] ?? '').toString().isNotEmpty ? null : const Icon(Icons.storefront_outlined),
+                      ),
+                      CompanyRatingLookup(companyId: company['id'].toString(), compact: true),
+                    ]),
                     title: Text(
                       company['name']?.toString() ?? 'Empresa',
                       style: const TextStyle(fontWeight: FontWeight.bold),

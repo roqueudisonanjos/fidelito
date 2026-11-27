@@ -10,6 +10,7 @@ class Promotion {
   final double? discountPercentage;
   final String? giftDescription;
   final String? imageUrl;
+  final List<String> mediaUrls;
 
   final DateTime? startsAt;
   final DateTime? endsAt;
@@ -26,6 +27,7 @@ class Promotion {
     this.discountPercentage,
     this.giftDescription,
     this.imageUrl,
+    this.mediaUrls = const [],
     this.startsAt,
     this.endsAt,
   });
@@ -55,6 +57,7 @@ class Promotion {
 
       giftDescription: map['gift_description'] as String?,
       imageUrl: map['image_url']?.toString(),
+      mediaUrls: map['media_urls'] is List ? List<String>.from(map['media_urls'] as List) : (map['image_url'] == null ? const [] : [map['image_url'].toString()]),
 
       startsAt: map['starts_at'] != null
           ? DateTime.tryParse(map['starts_at'].toString())

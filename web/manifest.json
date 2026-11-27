@@ -1,11 +1,11 @@
 {
-    "name": "Vanty",
-    "short_name": "Vanty",
+    "name": "Plim",
+    "short_name": "Plim",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#087968",
     "theme_color": "#087968",
-    "description": "Vanty - descubra, aproveite e ganhe.",
+    "description": "Plim - descubra, aproveite e ganhe.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

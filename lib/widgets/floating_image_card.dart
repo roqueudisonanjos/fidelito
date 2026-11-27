@@ -54,9 +54,11 @@ class FloatingImageCard extends StatelessWidget {
     this.gap = 12,
     this.padding = EdgeInsets.zero,
     this.onImageTap,
+    this.mediaCount = 1,
   });
   
   final VoidCallback? onImageTap;
+  final int mediaCount;
 
   final List<FloatBlock> blocks;
   final String? imageUrl;
@@ -128,7 +130,14 @@ class FloatingImageCard extends StatelessWidget {
                   right: 0,
                   child: GestureDetector(
                     onTap: onImageTap,
-                    child: _FadedSquareImage(url: imageUrl!, size: imageSize),
+                    child: Stack(children: [
+                      _FadedSquareImage(url: imageUrl!, size: imageSize),
+                      if (mediaCount > 1) Positioned(right: 6, top: 6, child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+                        decoration: BoxDecoration(color: Colors.black87, borderRadius: BorderRadius.circular(14)),
+                        child: Row(mainAxisSize: MainAxisSize.min, children: [const Icon(Icons.collections, color: Colors.white, size: 13), const SizedBox(width: 4), Text('$mediaCount', style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold))]),
+                      )),
+                    ]),
                   ),
                 ),
             ],
